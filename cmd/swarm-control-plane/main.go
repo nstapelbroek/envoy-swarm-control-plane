@@ -33,9 +33,13 @@ func main() {
 	go internal.RunGRPCServer(ctx, s, port)
 
 	var clusters, endpoints, routes, listeners, runtimes []types.Resource
+	//clusters = append(clusters, resource.MakeCluster())
+
 	snapshot := cache.NewSnapshot("1.0", endpoints, clusters, routes, listeners, runtimes)
 
 	_ = config.SetSnapshot(nodeID, snapshot)
+
+	_ = internal.TestDockerIntegration()
 
 	select {}
 }
