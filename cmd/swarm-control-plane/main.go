@@ -24,24 +24,27 @@ func init() {
 
 func main() {
 	flag.Parse()
-	ctx := context.Background()
+	ctx := internal.WithLogger(context.Background())
 
 	config := cache.NewSnapshotCache(true, cache.IDHash{}, logger{})
+	// Pass in new context here since i rather stop the gRPC server and don't bother with this
 	s := server.NewServer(context.Background(), config, nil)
+	p := internal.NewSwarmProvider()
 
-	// start the xDS server
 	go internal.RunGRPCServer(ctx, s, port)
+	go func(p internal.SwarmProvider, ctx context.Context) {
+		services, _ := p.Services(ctx)
+		println(services)
+	}(p, ctx)
 
+	sendDemoSnapshot(config)
+}
+
+func sendDemoSnapshot(c cache.SnapshotCache) {
 	var clusters, endpoints, routes, listeners, runtimes []types.Resource
-	//clusters = append(clusters, resource.MakeCluster())
-
 	snapshot := cache.NewSnapshot("1.0", endpoints, clusters, routes, listeners, runtimes)
 
-	_ = config.SetSnapshot(nodeID, snapshot)
-
-	_ = internal.TestDockerIntegration()
-
-	select {}
+	_ = c.SetSnapshot(nodeID, snapshot)
 }
 
 type logger struct{}

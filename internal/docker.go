@@ -2,24 +2,37 @@ package internal
 
 import (
 	"context"
-	"github.com/containous/traefik/v2/pkg/config/dynamic"
-	"github.com/containous/traefik/v2/pkg/provider/docker"
-	"github.com/containous/traefik/v2/pkg/safe"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 )
 
-func TestDockerIntegration() error {
-	p := docker.Provider{}
-	p.SetDefaults()
-	err := p.Init()
-	if err != nil {
-		return err
+type SwarmProvider struct {
+	dockerClient client.APIClient
+}
+
+func NewSwarmProvider() SwarmProvider {
+	httpHeaders := map[string]string{
+		"User-Agent": "Envoy Swarm Control Plane",
 	}
 
-	configChan := make(chan dynamic.Message)
-	pool := safe.NewPool(context.Background())
-	_ = p.Provide(configChan, pool)
+	c, err := client.NewClientWithOpts(
+		client.FromEnv,
+		client.WithHTTPHeaders(httpHeaders),
+	)
+	if err != nil {
+		panic(err)
+	}
 
-	henk := <- configChan
-	println(henk.Configuration)
-	return nil
+	return SwarmProvider{dockerClient: c}
+}
+
+func (s SwarmProvider) Services(ctx context.Context) (interface{}, error) {
+	serviceList, err := s.dockerClient.ServiceList(ctx, types.ServiceListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	print(serviceList)
+
+	return serviceList, nil
 }

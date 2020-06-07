@@ -36,7 +36,7 @@ func RunGRPCServer(ctx context.Context, srv server.Server, port uint) {
 		log.Fatal(err)
 	}
 
-	registeryServices(grpcServer, srv)
+	registerServices(grpcServer, srv)
 
 	log.Printf("xDS gRPC server listening on %d\n", port)
 	go func() {
@@ -49,7 +49,7 @@ func RunGRPCServer(ctx context.Context, srv server.Server, port uint) {
 	grpcServer.GracefulStop()
 }
 
-func registeryServices(grpcServer *grpc.Server, srv server.Server) {
+func registerServices(grpcServer *grpc.Server, srv server.Server) {
 	discoverygrpc.RegisterAggregatedDiscoveryServiceServer(grpcServer, srv)
 	endpointservice.RegisterEndpointDiscoveryServiceServer(grpcServer, srv)
 	clusterservice.RegisterClusterDiscoveryServiceServer(grpcServer, srv)
