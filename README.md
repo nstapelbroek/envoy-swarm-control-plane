@@ -30,4 +30,19 @@ a more opinionated setup where I move "the state" out of application. That's whe
  
  Then, ship the whole shebang in two seperate containers, one for the control plane and one preconfigured edge router (which is just the envoy with a prebaked yml)
   
+ == krabbels om niet te committen ==
  
+ mian.go -> parsed parameters en start de services
+  component 1: een Grpc server dat snapshots van de huidige staat kan serialiseren, hoef je geen kut aan te doen want dat komt dus al met de boilerplate
+  component 2: een business logic laag dat van docker service definitions die xds envoy zooi bakt
+  component 3: iets waar je xds definities naartoe kan sturen zodat ze bijgewerkt worden in component 1, belangrijk want caching wordt hier in afgehandeld
+  component 4: iets dat uit de docker socket pollt, per interval of per event. zoek 't uit :) 
+  
+  docker serivce events:
+  SERVICES
+  Docker services report the following events:
+  
+  create
+  remove
+  update
+  
