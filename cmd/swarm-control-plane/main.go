@@ -4,10 +4,8 @@ import (
 	"context"
 	"flag"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
-	"github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/docker"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -29,42 +27,25 @@ func init() {
 
 func main() {
 	flag.Parse()
-	ctx := internal.WithLogger(context.Background())
+	mainContext := context.Background()
 
-	c := cache.NewSnapshotCache(true, cache.IDHash{}, logger{})
-	p := docker.NewSwarmProvider()
+	snapshotCache := cache.NewSnapshotCache(true, cache.IDHash{}, internal.Logger)
+	provider := docker.NewSwarmProvider()
 
-	go internal.RunSwarmServiceDiscovery(ctx, p, c, nodeID)
-	go internal.RunGRPCServer(ctx, server.NewServer(context.Background(), c, nil), port)
+	go internal.RunSwarmServiceDiscovery(mainContext, provider, snapshotCache, nodeID)
+	go internal.RunGRPCServer(mainContext, snapshotCache, port)
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	waitForSignal(mainContext)
+}
+
+func waitForSignal(ctx context.Context) {
+	s := make(chan os.Signal, 1)
+	signal.Notify(s, syscall.SIGINT, syscall.SIGTERM)
 
 	select {
-	case <-sigs:
+	case <-s:
+		internal.Logger.Info("SIGINT Received, shutting down...")
 		ctx.Done()
 		return
 	}
-}
-
-type logger struct{}
-
-func (logger logger) Debugf(format string, args ...interface{}) {
-	if debug {
-		log.Printf(format+"\n", args...)
-	}
-}
-
-func (logger logger) Infof(format string, args ...interface{}) {
-	if debug {
-		log.Printf(format+"\n", args...)
-	}
-}
-
-func (logger logger) Warnf(format string, args ...interface{}) {
-	log.Printf(format+"\n", args...)
-}
-
-func (logger logger) Errorf(format string, args ...interface{}) {
-	log.Printf(format+"\n", args...)
 }
