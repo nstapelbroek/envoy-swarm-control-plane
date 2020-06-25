@@ -1,9 +1,10 @@
 package docker
 
 import (
-"context"
-"github.com/docker/docker/api/types"
-"github.com/docker/docker/client"
+	"context"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/client"
 )
 
 type SwarmProvider struct {
@@ -26,13 +27,7 @@ func NewSwarmProvider() SwarmProvider {
 	return SwarmProvider{dockerClient: c}
 }
 
-func (s SwarmProvider) Services(ctx context.Context) (interface{}, error) {
-	serviceList, err := s.dockerClient.ServiceList(ctx, types.ServiceListOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	print(serviceList)
-
-	return serviceList, nil
+// ListServices will convert swarm service definitions to our own Models
+func (s SwarmProvider) ListServices(ctx context.Context) ([]swarm.Service, error) {
+	return s.dockerClient.ServiceList(ctx, types.ServiceListOptions{})
 }

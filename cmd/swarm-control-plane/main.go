@@ -6,6 +6,7 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/docker"
 	"log"
 	"os"
 	"os/signal"
@@ -13,10 +14,10 @@ import (
 )
 
 var (
-	debug  bool
-	port   uint
-	pollInterval   uint
-	nodeID string
+	debug        bool
+	port         uint
+	pollInterval uint
+	nodeID       string
 )
 
 func init() {
@@ -31,15 +32,10 @@ func main() {
 	ctx := internal.WithLogger(context.Background())
 
 	c := cache.NewSnapshotCache(true, cache.IDHash{}, logger{})
-	// Pass in new context here since i rather stop the gRPC server and don't bother with this
-	s := server.NewServer(context.Background(), c, nil)
-	p := internal.NewSwarmProvider()
+	p := docker.NewSwarmProvider()
 
-
-
-	go internal.RunGRPCServer(ctx, s, port)
-	go internal.StartPollingForChanges(ctx, p, c)
-
+	go internal.RunSwarmServiceDiscovery(ctx, p, c, nodeID)
+	go internal.RunGRPCServer(ctx, server.NewServer(context.Background(), c, nil), port)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -50,7 +46,6 @@ func main() {
 		return
 	}
 }
-
 
 type logger struct{}
 
