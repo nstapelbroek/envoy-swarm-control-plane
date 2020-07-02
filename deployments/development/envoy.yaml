@@ -1,4 +1,3 @@
-# Base config for an ADS management server on 18000, admin port on 19000
 admin:
   access_log_path: /dev/null
   address:
@@ -12,8 +11,7 @@ dynamic_resources:
     transport_api_version: V3
     grpc_services:
       - envoy_grpc:
-          cluster_name: xds_cluster
-    set_node_on_first_message_only: true
+          cluster_name: local_control_plane
 
   cds_config:
     ads: {}
@@ -24,14 +22,14 @@ dynamic_resources:
     resource_api_version: V3
 
 node:
-  cluster: test-cluster
+  cluster: local-development
   id: test-id
 
 static_resources:
   clusters:
-    - connect_timeout: 1s
+    - connect_timeout: 5s
       load_assignment:
-        cluster_name: xds_cluster
+        cluster_name: local_control_plane
         endpoints:
           - lb_endpoints:
               - endpoint:
@@ -40,18 +38,5 @@ static_resources:
                       address: docker.for.mac.localhost
                       port_value: 9876
       http2_protocol_options: {}
-      name: xds_cluster
+      name: local_control_plane
       type: strict_dns
-
-layered_runtime:
-  layers:
-    - name: runtime-0
-      rtds_layer:
-        rtds_config:
-          ads: {}
-        name: runtime-0
-    - name: runtime-1
-      rtds_layer:
-        rtds_config:
-          ads: {}
-        name: runtime-1

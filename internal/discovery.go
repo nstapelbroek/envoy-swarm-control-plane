@@ -9,19 +9,24 @@ import (
 )
 
 func RunSwarmServiceDiscovery(ctx context.Context, p docker.SwarmProvider, c cache.SnapshotCache, nodeId string) {
-	err := discoverSwarm(p, c, nodeId)
-	if err != nil {
-		// Any error during initial is going to cause os.exit for now :)
+	if err := discoverSwarm(p, c, nodeId); err != nil {
+		// Any error during initial is going to cause os.exit as it guarantees fast feedback for initial setup.
 		Logger.Fatal(err)
 	}
 
 	Logger.Info("initial service discovery done.")
+	ticker := time.NewTicker(30 * time.Second)
+
 	select {
+	case <-ticker.C:
+		// todo would be really cool on the long term to replae the ticker with an event listener
+		// This might work out for us as we plan to rely fully on the routing mesh vip
+		if err := discoverSwarm(p, c, nodeId); err != nil {
+			Logger.Error(err)
+		}
 	case <-ctx.Done():
+		ticker.Stop()
 		return
-		// integrate some sort of update strategy here, choices:
-		// 1. Polling with a regular interval just like Treafik does
-		// 2. Listening to docker events. This might work out for us as we plan to rely fully on the routing mesh vip
 	}
 }
 
@@ -29,23 +34,25 @@ func discoverSwarm(p docker.SwarmProvider, c cache.SnapshotCache, nodeId string)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	dockerServices, err := p.ListServices(ctx)
+	// We don't support some resources yet, nullify them
+	var routes, listeners, runtimes []types.Resource
+	endpoints, clusters, err := p.ProvideXDS(ctx)
 	if err != nil {
 		return err
 	}
 
-	snapShot := createSnapshot(dockerServices)
+	snapShot := cache.NewSnapshot("1.0", endpoints, clusters, routes, listeners, runtimes)
 	err = c.SetSnapshot(nodeId, snapShot)
 	if err != nil {
 		return err
 	}
 
+	Logger.With(
+		"endpoints", len(endpoints),
+		"clusters", len(clusters),
+		"routes", len(routes),
+		"listeners", len(listeners),
+		"runtimes", len(runtimes),
+	).Debug("Updated snapshot from Swarm Discovery")
 	return nil
-}
-
-func createSnapshot(services interface{}) cache.Snapshot {
-	var clusters, endpoints, routes, listeners, runtimes []types.Resource
-	snapshot := cache.NewSnapshot("1.0", endpoints, clusters, routes, listeners, runtimes)
-
-	return snapshot
 }

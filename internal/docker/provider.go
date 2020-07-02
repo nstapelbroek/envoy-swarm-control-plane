@@ -2,18 +2,19 @@ package docker
 
 import (
 	"context"
-	"github.com/docker/docker/api/types"
+	swarmtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	cluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	endpoint "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
+	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
+	"github.com/golang/protobuf/ptypes"
+	"time"
 )
 
 type SwarmProvider struct {
 	dockerClient client.APIClient
-	cdsConversions <-chan *swarm.Service
-	edsConversions <-chan *swarm.Service
-	rdsConversions <-chan *swarm.Service
-	tdsConversions <-chan *swarm.Service
 }
 
 func NewSwarmProvider() SwarmProvider {
@@ -31,65 +32,52 @@ func NewSwarmProvider() SwarmProvider {
 
 	return SwarmProvider{
 		dockerClient: c,
-		cdsConversions: make(<-chan swarm.Service),
-		edsConversions: make(<-chan swarm.Service),
-		rdsConversions: make(<-chan swarm.Service),
-		tdsConversions: make(<-chan swarm.Service),
 	}
 }
 
-// ListServices will convert swarm service definitions to our own Models
-func (s SwarmProvider) ListServices(ctx context.Context) ([]swarm.Service, error) {
-	return s.dockerClient.ServiceList(ctx, types.ServiceListOptions{})
+// ProvideXDS will convert swarm service definitions to our own Models
+func (s SwarmProvider) ProvideXDS(ctx context.Context) (clusters []types.Resource, endpoints []types.Resource, err error) {
+	services, err := s.dockerClient.ServiceList(ctx, swarmtypes.ServiceListOptions{})
+	if err != nil {
+		return
+	}
+
+	for _, service := range services {
+		clusters = append(clusters, s.convertServiceToCluster(&service))
+		endpoints = append(endpoints, s.convertServiceToEndpoint(&service))
+	}
+
+	return
 }
 
-func (s SwarmProvider) convertServicesToClusters(services []swarm.Service) interface{} {
-	for _, s := range services {
-		cdsConversions <- &s
-		edsConversions <- &s
-		rdsConversions <- &s
-		tdsConversions <- &s
-		// todo sds for certificates
+func (s SwarmProvider) convertServiceToEndpoint(service *swarm.Service) (endpoint *endpoint.Endpoint) {
+	return
+}
+
+func (s SwarmProvider) convertServiceToCluster(service *swarm.Service) *cluster.Cluster {
+	source := &core.ConfigSource{
+		ResourceApiVersion: core.ApiVersion_V3,
+		ConfigSourceSpecifier: &core.ConfigSource_ApiConfigSource{
+			ApiConfigSource: &core.ApiConfigSource{
+				ApiType:                   core.ApiConfigSource_GRPC,
+				SetNodeOnFirstMessageOnly: true,
+				GrpcServices: []*core.GrpcService{{
+					TargetSpecifier: &core.GrpcService_EnvoyGrpc_{
+						EnvoyGrpc: &core.GrpcService_EnvoyGrpc{ClusterName: "henk"},
+					},
+				}},
+			},
+		},
 	}
-	return envoy_config_cluster_v3.Cluster{
-		TransportSocketMatches:          nil,
-		Name:                            "",
-		AltStatName:                     "",
-		ClusterDiscoveryType:            nil,
-		EdsClusterConfig:                nil,
-		ConnectTimeout:                  nil,
-		PerConnectionBufferLimitBytes:   nil,
-		LbPolicy:                        0,
-		LoadAssignment:                  nil,
-		HealthChecks:                    nil,
-		MaxRequestsPerConnection:        nil,
-		CircuitBreakers:                 nil,
-		UpstreamHttpProtocolOptions:     nil,
-		CommonHttpProtocolOptions:       nil,
-		HttpProtocolOptions:             nil,
-		Http2ProtocolOptions:            nil,
-		TypedExtensionProtocolOptions:                 nil,
-		DnsRefreshRate:                                nil,
-		DnsFailureRefreshRate:                         nil,
-		RespectDnsTtl:                                 false,
-		DnsLookupFamily:                               0,
-		DnsResolvers:                                  nil,
-		UseTcpForDnsLookups:                           false,
-		OutlierDetection:                              nil,
-		CleanupInterval:                               nil,
-		UpstreamBindConfig:                            nil,
-		LbSubsetConfig:                                nil,
-		LbConfig:                                      nil,
-		CommonLbConfig:                                nil,
-		TransportSocket:                               nil,
-		Metadata:                                      nil,
-		ProtocolSelection:                             0,
-		UpstreamConnectionOptions:                     nil,
-		CloseConnectionsOnHostHealthFailure:           false,
-		IgnoreHealthOnHostRemoval:                     false,
-		Filters:                                       nil,
-		LoadBalancingPolicy:                           nil,
-		LrsServer:                                     nil,
-		TrackTimeoutBudgets:                           false,
+
+	connectTimeout := 5 * time.Second
+
+	return &cluster.Cluster{
+		Name:                 "henk",
+		ConnectTimeout:       ptypes.DurationProto(connectTimeout),
+		ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_EDS},
+		EdsClusterConfig: &cluster.Cluster_EdsClusterConfig{
+			EdsConfig: source,
+		},
 	}
 }

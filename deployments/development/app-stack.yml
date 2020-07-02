@@ -1,0 +1,14 @@
+version: '3.7'
+services:
+  myapp:
+    image: kennethreitz/httpbin:latest
+    deploy:
+      replicas: 2
+      labels:
+        - henk=ingrid
+    networks:
+      - edge-traffic
+
+networks:
+  edge-traffic:
+    external: true

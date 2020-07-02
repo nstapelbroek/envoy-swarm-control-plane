@@ -1,0 +1,25 @@
+version: '3.7'
+services:
+  #  control-plane:
+  #    build:
+  #      context: .
+  #      dockerfile: Dockerfile
+  #      target: App
+
+  envoy:
+    image: envoyproxy/envoy:v1.14-latest
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml"]
+    ports:
+      - 19000:19000
+      - 443:443
+      - 80:80
+    volumes:
+      - ./envoy.yaml:/etc/envoy/envoy.yaml
+    networks:
+      - default
+      - edge-traffic
+
+networks:
+  default:
+  edge-traffic:
+    external: true
