@@ -27,8 +27,9 @@ func init() {
 
 func main() {
 	flag.Parse()
-	mainContext := context.Background()
+	internal.CreateLogger(debug)
 
+	mainContext := context.Background()
 	snapshotCache := cache.NewSnapshotCache(true, cache.IDHash{}, internal.Logger)
 	provider := docker.NewSwarmProvider()
 

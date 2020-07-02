@@ -2,12 +2,21 @@ package internal
 
 import (
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"os"
 )
 
-var Logger = zap.New(zapcore.NewCore(
-	zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
-	zapcore.Lock(os.Stdout),
-	zap.NewAtomicLevel(),
-)).Sugar()
+var Logger *zap.SugaredLogger
+
+func CreateLogger(debug bool) {
+	config := zap.NewProductionConfig()
+	config.OutputPaths = []string{"stdout"}
+	if debug {
+		config.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
+	}
+
+	l, err := config.Build()
+	if err != nil {
+		panic(err)
+	}
+
+	Logger = l.Sugar()
+}
