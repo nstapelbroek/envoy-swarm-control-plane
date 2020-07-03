@@ -50,34 +50,35 @@ func (s SwarmProvider) ProvideXDS(ctx context.Context) (clusters []types.Resourc
 	return
 }
 
-func (s SwarmProvider) convertServiceToEndpoint(service *swarm.Service) (endpoint *endpoint.Endpoint) {
-	return
+func (s SwarmProvider) convertServiceToEndpoint(service *swarm.Service) *endpoint.ClusterLoadAssignment {
+	return &endpoint.ClusterLoadAssignment{
+		ClusterName: "mytest",
+		Endpoints: []*endpoint.LocalityLbEndpoints{{
+			LbEndpoints: []*endpoint.LbEndpoint{{
+				HostIdentifier: &endpoint.LbEndpoint_Endpoint{
+					Endpoint: &endpoint.Endpoint{
+						Address: &core.Address{
+							Address: &core.Address_SocketAddress{
+								SocketAddress: &core.SocketAddress{
+									Protocol: core.SocketAddress_TCP,
+									Address:  "localhost",
+									PortSpecifier: &core.SocketAddress_PortValue{
+										PortValue: 1337,
+									},
+								},
+							},
+						},
+					},
+				},
+			}},
+		}},
+	}
 }
 
 func (s SwarmProvider) convertServiceToCluster(service *swarm.Service) *cluster.Cluster {
-	source := &core.ConfigSource{
-		ResourceApiVersion: core.ApiVersion_V3,
-		ConfigSourceSpecifier: &core.ConfigSource_ApiConfigSource{
-			ApiConfigSource: &core.ApiConfigSource{
-				ApiType:                   core.ApiConfigSource_GRPC,
-				SetNodeOnFirstMessageOnly: true,
-				GrpcServices: []*core.GrpcService{{
-					TargetSpecifier: &core.GrpcService_EnvoyGrpc_{
-						EnvoyGrpc: &core.GrpcService_EnvoyGrpc{ClusterName: "henk"},
-					},
-				}},
-			},
-		},
-	}
-
-	connectTimeout := 5 * time.Second
-
 	return &cluster.Cluster{
-		Name:                 "henk",
-		ConnectTimeout:       ptypes.DurationProto(connectTimeout),
-		ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_EDS},
-		EdsClusterConfig: &cluster.Cluster_EdsClusterConfig{
-			EdsConfig: source,
-		},
+		Name:                 "mytest",
+		ConnectTimeout:       ptypes.DurationProto(5 * time.Second),
+		ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_STATIC},
 	}
 }
