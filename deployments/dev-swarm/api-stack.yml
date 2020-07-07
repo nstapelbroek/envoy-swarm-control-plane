@@ -6,6 +6,8 @@ services:
       replicas: 2
       labels:
         - henk=ingrid
+    ports:
+      - 80
     networks:
       - edge-traffic
 

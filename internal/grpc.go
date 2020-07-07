@@ -13,6 +13,7 @@ import (
 	secretservice "github.com/envoyproxy/go-control-plane/envoy/service/secret/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	streaming "github.com/envoyproxy/go-control-plane/pkg/server/v3"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
 	"google.golang.org/grpc"
 	"net"
 )
@@ -33,16 +34,16 @@ func RunGRPCServer(ctx context.Context, snapshotCache cache.SnapshotCache, port 
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
-		Logger.Fatal(err)
+		logger.Fatalf(err.Error())
 	}
 
 	srv := streaming.NewServer(context.Background(), snapshotCache, nil)
 	registerServices(grpcServer, srv)
 
-	Logger.Info("xDS gRPC streaming listening on %d\n", port)
+	logger.Infof("xDS gRPC streaming listening on %d\n", port)
 	go func() {
 		if err = grpcServer.Serve(lis); err != nil {
-			Logger.Error(err)
+			logger.Errorf(err.Error())
 		}
 	}()
 	<-ctx.Done()

@@ -5,6 +5,7 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/docker"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
 	"time"
 )
 
@@ -15,10 +16,10 @@ import (
 func RunSwarmServiceDiscovery(ctx context.Context, p docker.SwarmProvider, c cache.SnapshotCache, nodeId string) {
 	if err := discoverSwarm(p, c, nodeId); err != nil {
 		// Any error during initial is going to cause os.exit as it guarantees fast feedback for initial setup.
-		Logger.Fatal(err)
+		logger.Fatalf(err.Error(), err)
 	}
 
-	Logger.Info("initial service discovery done.")
+	logger.Infof("initial service discovery done.")
 	ticker := time.NewTicker(30 * time.Second)
 
 	select {
@@ -26,7 +27,7 @@ func RunSwarmServiceDiscovery(ctx context.Context, p docker.SwarmProvider, c cac
 		// todo would be really cool on the long term to replae the ticker with an event listener
 		// This might work out for us as we plan to rely fully on the routing mesh vip
 		if err := discoverSwarm(p, c, nodeId); err != nil {
-			Logger.Error(err)
+			logger.Errorf(err.Error(), err)
 		}
 	case <-ctx.Done():
 		ticker.Stop()
@@ -40,7 +41,7 @@ func discoverSwarm(p docker.SwarmProvider, c cache.SnapshotCache, nodeId string)
 
 	// We don't support some resources yet, nullify them
 	var routes, listeners, runtimes []types.Resource
-	endpoints, clusters, err := p.ProvideXDS(ctx)
+	endpoints, clusters, err := p.ProvideADS(ctx)
 	if err != nil {
 		return err
 	}
@@ -51,12 +52,12 @@ func discoverSwarm(p docker.SwarmProvider, c cache.SnapshotCache, nodeId string)
 		return err
 	}
 
-	Logger.With(
-		"endpoints", len(endpoints),
-		"clusters", len(clusters),
-		"routes", len(routes),
-		"listeners", len(listeners),
-		"runtimes", len(runtimes),
-	).Debug("Updated snapshot from Swarm Discovery")
+	logger.WithFields(logger.Fields{
+		"endpoint-count": len(endpoints),
+		"cluster-count":  len(clusters),
+		"route-count":    len(routes),
+		"listener-count": len(listeners),
+		"runtime-count":  len(runtimes),
+	}).Debugf("Updated snapshot from Swarm Discovery")
 	return nil
 }

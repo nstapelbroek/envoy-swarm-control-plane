@@ -4,5 +4,8 @@ docker network inspect edge-traffic || docker network create --driver=overlay ed
 docker stack rm envoy
 docker stack deploy --compose-file ./envoy-stack.yml envoy
 
-docker stack rm myapp
-docker stack deploy --compose-file ./app-stack.yml myapp
+docker stack rm myapi
+docker stack deploy --compose-file ./api-stack.yml myapi
+
+docker stack rm myfrontend
+docker stack deploy --compose-file ./frontend-stack.yml myfrontend

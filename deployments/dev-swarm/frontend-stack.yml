@@ -1,0 +1,19 @@
+version: '3.7'
+services:
+  myapp:
+    image: nstapelbroek/static-webserver:3
+    deploy:
+      replicas: 3
+      labels:
+        - envoy.endpoint.default.protocol=tcp
+        - envoy.endpoint.default.port=80
+    ports:
+      - 80
+    networks:
+      - default
+      - edge-traffic
+
+networks:
+  default:
+  edge-traffic:
+    external: true
