@@ -11,6 +11,7 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
+	"regexp"
 	"time"
 )
 
@@ -74,9 +75,10 @@ func (s SwarmProvider) ProvideADS(ctx context.Context) (endpoints []types.Resour
 }
 
 func hasPortLabel(s *swarm.Service) bool {
-	for key, value := range s.Spec.Annotations.Labels {
-		print(key)
-		print(value)
+	for key, _ := range s.Spec.Annotations.Labels {
+		if match, _ := regexp.MatchString(`^envoy\.endpoint\.\S+\.protocol$`, key); match {
+			return true
+		}
 	}
 	return false
 }
@@ -92,8 +94,9 @@ func inIngressNetwork(service *swarm.Service, ingress *swarmtypes.NetworkResourc
 }
 
 func (s SwarmProvider) convertServiceToEndpoint(service *swarm.Service) *endpoint.ClusterLoadAssignment {
+
 	return &endpoint.ClusterLoadAssignment{
-		ClusterName: "mytest",
+		ClusterName: service.Spec.Name,
 		Endpoints: []*endpoint.LocalityLbEndpoints{{
 			LbEndpoints: []*endpoint.LbEndpoint{{
 				HostIdentifier: &endpoint.LbEndpoint_Endpoint{
@@ -118,8 +121,8 @@ func (s SwarmProvider) convertServiceToEndpoint(service *swarm.Service) *endpoin
 
 func (s SwarmProvider) convertServiceToCluster(service *swarm.Service) *cluster.Cluster {
 	return &cluster.Cluster{
-		Name:                 "mytest",
-		ConnectTimeout:       ptypes.DurationProto(5 * time.Second),
+		Name:                 service.Spec.Name,
+		ConnectTimeout:       ptypes.DurationProto(2 * time.Second),
 		ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_STATIC},
 	}
 }

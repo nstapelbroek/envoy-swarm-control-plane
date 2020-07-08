@@ -25,7 +25,7 @@ func init() {
 	flag.UintVar(&port, "port", 9876, "Management server port")
 	flag.UintVar(&pollInterval, "interval", 15, "Poll interval")
 	flag.StringVar(&nodeID, "nodeID", "test-id", "Node ID")
-	flag.StringVar(&ingressNetwork, "ingressNetwork", "", "The network name or ID which connects services to the loadbalancer")
+	flag.StringVar(&ingressNetwork, "ingress-network", "", "The network name or ID which connects services to the loadbalancer")
 }
 
 func main() {
