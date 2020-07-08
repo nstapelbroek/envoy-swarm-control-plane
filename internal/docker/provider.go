@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"errors"
 	swarmtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
@@ -44,7 +45,7 @@ func NewSwarmProvider(ingressNetwork string, logger logger.Logger) SwarmProvider
 // ProvideADS will convert swarm service definitions to our own Models
 func (s SwarmProvider) ProvideADS(ctx context.Context) (endpoints []types.Resource, clusters []types.Resource, err error) {
 	// make sure we have up-to-date info about our ingress network
-	ingress, err := s.dockerClient.NetworkInspect(ctx, s.ingressNetwork, swarmtypes.NetworkInspectOptions{})
+	ingress, err := s.getIngressNetwork(ctx)
 	if err != nil {
 		return
 	}
@@ -75,7 +76,7 @@ func (s SwarmProvider) ProvideADS(ctx context.Context) (endpoints []types.Resour
 }
 
 func hasPortLabel(s *swarm.Service) bool {
-	for key, _ := range s.Spec.Annotations.Labels {
+	for key := range s.Spec.Annotations.Labels {
 		if match, _ := regexp.MatchString(`^envoy\.endpoint\.\S+\.protocol$`, key); match {
 			return true
 		}
@@ -125,4 +126,17 @@ func (s SwarmProvider) convertServiceToCluster(service *swarm.Service) *cluster.
 		ConnectTimeout:       ptypes.DurationProto(2 * time.Second),
 		ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_STATIC},
 	}
+}
+
+func (s SwarmProvider) getIngressNetwork(ctx context.Context) (network swarmtypes.NetworkResource, err error) {
+	network, err = s.dockerClient.NetworkInspect(ctx, s.ingressNetwork, swarmtypes.NetworkInspectOptions{})
+	if err != nil {
+		return
+	}
+
+	if network.Scope != "swarm" {
+		return network, errors.New("the provided ingress network is not scoped for the entire cluster (swarm)")
+	}
+
+	return
 }
