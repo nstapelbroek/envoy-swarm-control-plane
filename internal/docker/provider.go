@@ -12,7 +12,6 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
-	"regexp"
 	"time"
 )
 
@@ -57,31 +56,23 @@ func (s SwarmProvider) ProvideADS(ctx context.Context) (endpoints []types.Resour
 	}
 
 	for _, service := range services {
-		cl := s.logger.WithFields(logger.Fields{"swarm-service-id": service.ID})
+		log := s.logger.WithFields(logger.Fields{"swarm-service-id": service.ID})
 		if !inIngressNetwork(&service, &ingress) {
-			cl.Debugf("skipped generating ADS for service because it's not connected to the ingress network")
+			log.Debugf("skipped generating ADS for service because it's not connected to the ingress network")
 			continue
 		}
 
 		// We need at least a port where we can route the traffic towards, the rest can be defaulted
-		if !hasPortLabel(&service) {
-			cl.Debugf("skipped generating ADS for service because it has no port labeled")
+		labels := ParseServiceLabels(service.Spec.Labels)
+		if len(labels.endpoints) < 1 {
+			log.Debugf("skipped generating ADS for service because it has no port labeled")
 		}
 
 		clusters = append(clusters, s.convertServiceToCluster(&service))
-		endpoints = append(endpoints, s.convertServiceToEndpoint(&service))
+		endpoints = append(endpoints, s.convertServiceToEndpoint(&service, &labels))
 	}
 
 	return
-}
-
-func hasPortLabel(s *swarm.Service) bool {
-	for key := range s.Spec.Annotations.Labels {
-		if match, _ := regexp.MatchString(`^envoy\.endpoint\.\S+\.protocol$`, key); match {
-			return true
-		}
-	}
-	return false
 }
 
 func inIngressNetwork(service *swarm.Service, ingress *swarmtypes.NetworkResource) bool {
@@ -94,8 +85,8 @@ func inIngressNetwork(service *swarm.Service, ingress *swarmtypes.NetworkResourc
 	return false
 }
 
-func (s SwarmProvider) convertServiceToEndpoint(service *swarm.Service) *endpoint.ClusterLoadAssignment {
-
+func (s SwarmProvider) convertServiceToEndpoint(service *swarm.Service, labels *ServiceLabels) *endpoint.ClusterLoadAssignment {
+	// todo iterate over serviceLabels
 	return &endpoint.ClusterLoadAssignment{
 		ClusterName: service.Spec.Name,
 		Endpoints: []*endpoint.LocalityLbEndpoints{{

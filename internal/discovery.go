@@ -9,10 +9,6 @@ import (
 	"time"
 )
 
-// de provider abstracheert de docker specifics en provide XDS resources
-// de provider wordt aangestuurd door een discovery class (manager, whatever) deze handeld intervals of signals af en schiet updated xds resources naar een caching struct
-// een onderdeel dat de cache afhangt.
-
 func RunSwarmServiceDiscovery(ctx context.Context, p docker.SwarmProvider, c cache.SnapshotCache, nodeId string) {
 	if err := discoverSwarm(p, c, nodeId); err != nil {
 		// Any error during initial is going to cause os.exit as it guarantees fast feedback for initial setup.
