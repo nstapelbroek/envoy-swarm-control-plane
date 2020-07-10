@@ -12,6 +12,7 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
+	"net"
 	"time"
 )
 
@@ -57,7 +58,8 @@ func (s SwarmProvider) ProvideADS(ctx context.Context) (endpoints []types.Resour
 
 	for _, service := range services {
 		log := s.logger.WithFields(logger.Fields{"swarm-service-id": service.ID})
-		if !inIngressNetwork(&service, &ingress) {
+		ip := getIngressServiceIP(&service, &ingress)
+		if ip == nil {
 			log.Debugf("skipped generating ADS for service because it's not connected to the ingress network")
 			continue
 		}
@@ -66,48 +68,50 @@ func (s SwarmProvider) ProvideADS(ctx context.Context) (endpoints []types.Resour
 		labels := ParseServiceLabels(service.Spec.Labels)
 		if len(labels.endpoints) < 1 {
 			log.Debugf("skipped generating ADS for service because it has no port labeled")
+			continue
 		}
 
 		clusters = append(clusters, s.convertServiceToCluster(&service))
-		endpoints = append(endpoints, s.convertServiceToEndpoint(&service, &labels))
+		endpoints = append(endpoints, s.convertServiceToEndpoint(service.Spec.Name, ip, &labels))
 	}
 
 	return
 }
 
-func inIngressNetwork(service *swarm.Service, ingress *swarmtypes.NetworkResource) bool {
+func getIngressServiceIP(service *swarm.Service, ingress *swarmtypes.NetworkResource) net.IP {
 	for _, vip := range service.Endpoint.VirtualIPs {
 		if vip.NetworkID == ingress.ID {
-			return true
+			ip, _, _ := net.ParseCIDR(vip.Addr)
+			return ip
 		}
 	}
 
-	return false
+	return nil
 }
 
-func (s SwarmProvider) convertServiceToEndpoint(service *swarm.Service, labels *ServiceLabels) *endpoint.ClusterLoadAssignment {
-	// todo iterate over serviceLabels
-	return &endpoint.ClusterLoadAssignment{
-		ClusterName: service.Spec.Name,
-		Endpoints: []*endpoint.LocalityLbEndpoints{{
-			LbEndpoints: []*endpoint.LbEndpoint{{
-				HostIdentifier: &endpoint.LbEndpoint_Endpoint{
-					Endpoint: &endpoint.Endpoint{
-						Address: &core.Address{
-							Address: &core.Address_SocketAddress{
-								SocketAddress: &core.SocketAddress{
-									Protocol: core.SocketAddress_TCP,
-									Address:  "localhost",
-									PortSpecifier: &core.SocketAddress_PortValue{
-										PortValue: 1337,
-									},
-								},
+func (s SwarmProvider) convertServiceToEndpoint(clusterName string, ingressIP net.IP, labels *ServiceLabels) *endpoint.ClusterLoadAssignment {
+	endpoints := make([]*endpoint.LbEndpoint, len(labels.endpoints))
+	for _, serviceEndpoint := range labels.endpoints {
+		endpoints = append(endpoints, &endpoint.LbEndpoint{
+			HostIdentifier: &endpoint.LbEndpoint_Endpoint{
+				Endpoint: &endpoint.Endpoint{
+					Address: &core.Address{
+						Address: &core.Address_SocketAddress{
+							SocketAddress: &core.SocketAddress{
+								Protocol:      serviceEndpoint.protocol,
+								Address:       ingressIP.String(),
+								PortSpecifier: &serviceEndpoint.port,
 							},
 						},
 					},
 				},
-			}},
-		}},
+			},
+		})
+	}
+
+	return &endpoint.ClusterLoadAssignment{
+		ClusterName: clusterName,
+		Endpoints:   []*endpoint.LocalityLbEndpoints{{LbEndpoints: endpoints}},
 	}
 }
 
