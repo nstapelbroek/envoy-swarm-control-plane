@@ -5,8 +5,11 @@ services:
     deploy:
       replicas: 3
       labels:
-        - envoy.endpoint.default.protocol=tcp
-        - envoy.endpoint.default.port=80
+        - envoy.endpoint.protocol=tcp # default, other option: udp
+        - envoy.endpoint.port=80 # required, only one port per service atm though
+        - envoy.route.domain=nstapelbroek.com # not implemented yet
+        - envoy.route.path=/api # not implemented yet
+        - envoy.route.protocol=http # not implemented yet
     ports:
       - 80
     networks:

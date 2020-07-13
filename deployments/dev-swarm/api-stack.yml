@@ -1,13 +1,11 @@
 version: '3.7'
 services:
   myapp:
-    image: kennethreitz/httpbin:latest
+    image: containous/whoami:latest
     deploy:
       replicas: 2
       labels:
-        - henk=ingrid
-    ports:
-      - 80
+        - envoy.endpoint.port=80
     networks:
       - edge-traffic
 
