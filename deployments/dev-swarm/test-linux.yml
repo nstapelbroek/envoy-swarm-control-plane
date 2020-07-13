@@ -1,0 +1,18 @@
+version: '3.7'
+services:
+  myapp:
+    image: containous/whoami:latest
+    deploy:
+      replicas: 1
+      labels:
+        - henk=ingrid
+    networks:
+      - host
+      - edge-traffic
+
+networks:
+  edge-traffic:
+    external: true
+  host:
+    name: "host"
+    external: true
