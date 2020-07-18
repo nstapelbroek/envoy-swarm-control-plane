@@ -11,7 +11,7 @@ dynamic_resources:
     transport_api_version: V3
     grpc_services:
       - envoy_grpc:
-          cluster_name: boot_control_plane
+          cluster_name: control_plane
 
   cds_config:
     ads: {}
@@ -29,7 +29,7 @@ static_resources:
   clusters:
     - connect_timeout: 5s
       load_assignment:
-        cluster_name: boot_control_plane
+        cluster_name: control_plane
         endpoints:
           - lb_endpoints:
               - endpoint:
@@ -38,5 +38,5 @@ static_resources:
                       address: host.docker.internal
                       port_value: 9876
       http2_protocol_options: {}
-      name: boot_control_plane
+      name: control_plane
       type: strict_dns
