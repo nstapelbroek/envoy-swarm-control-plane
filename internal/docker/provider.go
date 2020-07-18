@@ -9,8 +9,11 @@ import (
 	cluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	endpoint "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
+	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
+	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
 	"time"
@@ -47,6 +50,7 @@ func (s SwarmProvider) ProvideADS(ctx context.Context) (
 	endpoints []types.Resource,
 	clusters []types.Resource,
 	routes []types.Resource,
+	listeners []types.Resource,
 	err error) {
 	// Make sure we have up-to-date info about our ingress network
 	ingress, err := s.getIngressNetwork(ctx)
@@ -78,7 +82,9 @@ func (s SwarmProvider) ProvideADS(ctx context.Context) (
 
 		clusters = append(clusters, s.convertServiceToCluster(&service))
 		endpoints = append(endpoints, s.convertServiceToEndpoint(&service, &labels))
-		routes = append(routes, s.convertServiceToRoute(&service, &labels))
+		serviceRoute := s.convertServiceToRoute(&service, &labels)
+		routes = append(routes, serviceRoute)
+		listeners = append(listeners, s.convertServiceToListener(&service, &labels, serviceRoute))
 	}
 
 	return
@@ -141,17 +147,18 @@ func (s SwarmProvider) getIngressNetwork(ctx context.Context) (network swarmtype
 }
 
 func (s SwarmProvider) convertServiceToRoute(service *swarm.Service, labels *ServiceLabel) *route.RouteConfiguration {
-	primaryDomain := "*"
+	// Assume that label parsing did not overwrite with an empty array
+	primaryDomain := labels.route.domains[0]
 	vhostName := service.Spec.Name
-	if len(labels.route.domain) > 0 {
-		primaryDomain = labels.route.domain[0]
+	if labels.route.domains[0] != "*" {
 		vhostName = primaryDomain
 	}
+
 	return &route.RouteConfiguration{
-		Name: service.Spec.Name,
+		Name: service.Spec.Name + "_route",
 		VirtualHosts: []*route.VirtualHost{{
 			Name:    vhostName,
-			Domains: labels.route.domain,
+			Domains: labels.route.domains,
 			Routes: []*route.Route{{
 				Match: &route.RouteMatch{
 					PathSpecifier: &route.RouteMatch_Prefix{
@@ -164,6 +171,44 @@ func (s SwarmProvider) convertServiceToRoute(service *swarm.Service, labels *Ser
 							Cluster: service.Spec.Name,
 						},
 					},
+				},
+			}},
+		}},
+	}
+}
+
+func (s SwarmProvider) convertServiceToListener(service *swarm.Service, labels *ServiceLabel, route *route.RouteConfiguration) *listener.Listener {
+	manager := &hcm.HttpConnectionManager{
+		CodecType:      hcm.HttpConnectionManager_AUTO,
+		StatPrefix:     "http",
+		RouteSpecifier: &hcm.HttpConnectionManager_RouteConfig{RouteConfig: route},
+		HttpFilters: []*hcm.HttpFilter{{
+			Name: "envoy.filters.http.router",
+		}},
+	}
+	mngr, err := ptypes.MarshalAny(manager)
+	if err != nil {
+		panic(err)
+	}
+
+	return &listener.Listener{
+		Name: service.Spec.Name + "_listener",
+		Address: &core.Address{
+			Address: &core.Address_SocketAddress{
+				SocketAddress: &core.SocketAddress{
+					Protocol: core.SocketAddress_TCP,
+					Address:  "0.0.0.0", // Default to all addresses since we don't know where our proxies are running
+					PortSpecifier: &core.SocketAddress_PortValue{
+						PortValue: 80, // todo
+					},
+				},
+			},
+		},
+		FilterChains: []*listener.FilterChain{{
+			Filters: []*listener.Filter{{
+				Name: wellknown.HTTPConnectionManager,
+				ConfigType: &listener.Filter_TypedConfig{
+					TypedConfig: mngr,
 				},
 			}},
 		}},
