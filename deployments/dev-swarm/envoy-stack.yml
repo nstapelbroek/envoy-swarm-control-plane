@@ -9,6 +9,8 @@ services:
   envoy:
     image: envoyproxy/envoy:v1.15-latest
     command: ["envoy", "-c", "/etc/envoy/envoy.yaml"]
+    environment:
+      - ENVOY_UID=0 # need this since we'll bind on port 80
     ports:
       - 19000:19000
       - 443:443
