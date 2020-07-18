@@ -13,8 +13,8 @@ type ServiceEndpoint struct {
 }
 
 type ServiceRoute struct {
-	domain []string
-	path   string
+	domains []string
+	path    string
 }
 
 type ServiceLabel struct {
@@ -43,8 +43,8 @@ func (l *ServiceLabel) setRouteProp(property string, value string) {
 	switch strings.ToLower(property) {
 	case "path":
 		l.route.path = value
-	case "domain":
-		l.route.domain = strings.Split(value, ",")
+	case "domains":
+		l.route.domains = strings.Split(value, ",")
 	}
 }
 
@@ -58,8 +58,8 @@ func NewServiceLabel() ServiceLabel {
 			port:     types.SocketAddress_PortValue{PortValue: 0},
 		},
 		ServiceRoute{
-			domain: []string{},
-			path:   "/",
+			domains: []string{"*"},
+			path:    "/",
 		},
 	}
 }
