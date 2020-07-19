@@ -48,7 +48,7 @@ func (l *ServiceLabel) setRouteProp(property string, value string) {
 	}
 }
 
-var serviceLabelRegex = regexp.MustCompile(`(?Uim)envoy\.(?P<type>\S+)\.(?P<property>protocol|port)`)
+var serviceLabelRegex = regexp.MustCompile(`(?Uim)envoy\.(?P<type>\S+)\.(?P<property>\S+$)`)
 
 // NewServiceLabel will create an ServiceLabel with default values
 func NewServiceLabel() ServiceLabel {
@@ -58,7 +58,7 @@ func NewServiceLabel() ServiceLabel {
 			port:     types.SocketAddress_PortValue{PortValue: 0},
 		},
 		ServiceRoute{
-			domains: []string{"*"},
+			domains: []string{},
 			path:    "/",
 		},
 	}

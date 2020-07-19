@@ -1,7 +1,7 @@
 #! /bin/sh
 docker stack rm envoy myapi myfrontend
 docker network rm edge-traffic
-sleep 10
+sleep 12
 
 docker network create --driver=overlay --attachable edge-traffic
 docker stack deploy --compose-file ./envoy-stack.yml envoy
