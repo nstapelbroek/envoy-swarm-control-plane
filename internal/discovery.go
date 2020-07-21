@@ -12,7 +12,7 @@ import (
 func RunSwarmServiceDiscovery(ctx context.Context, p docker.SwarmProvider, c cache.SnapshotCache, nodeId string) {
 	if err := discoverSwarm(p, c, nodeId); err != nil {
 		// Any error during initial is going to cause os.exit as it guarantees fast feedback for initial setup.
-		logger.Fatalf(err.Error(), err)
+		logger.Fatalf(err.Error())
 	}
 
 	logger.Infof("initial service discovery done.")
@@ -23,7 +23,7 @@ func RunSwarmServiceDiscovery(ctx context.Context, p docker.SwarmProvider, c cac
 		// todo would be really cool on the long term to replae the ticker with an event listener
 		// This might work out for us as we plan to rely fully on the routing mesh vip
 		if err := discoverSwarm(p, c, nodeId); err != nil {
-			logger.Errorf(err.Error(), err)
+			logger.Errorf(err.Error())
 		}
 	case <-ctx.Done():
 		ticker.Stop()
