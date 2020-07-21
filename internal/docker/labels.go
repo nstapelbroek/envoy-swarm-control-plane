@@ -65,7 +65,7 @@ func NewServiceLabel() ServiceLabel {
 }
 
 // ParseServiceLabels constructs a ServiceLabel with default values and passed overrides
-func ParseServiceLabels(labels map[string]string) ServiceLabel {
+func ParseServiceLabels(labels map[string]string) *ServiceLabel {
 	s := NewServiceLabel()
 	for key, value := range labels {
 		if !serviceLabelRegex.MatchString(key) {
@@ -82,5 +82,5 @@ func ParseServiceLabels(labels map[string]string) ServiceLabel {
 
 	}
 
-	return s
+	return &s
 }

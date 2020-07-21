@@ -36,13 +36,8 @@ func NewSwarmProvider(ingressNetwork string, logger logger.Logger) SwarmProvider
 	}
 }
 
-// ProvideADS will break down swarm service definitions into clusters, endpoints and vhosts. The vhosts are then aggregated into Envoy Routes and listeners
-func (s SwarmProvider) ProvideADS(ctx context.Context) (
-	endpoints []types.Resource,
-	clusters []types.Resource,
-	routes []types.Resource,
-	listeners []types.Resource,
-	err error) {
+// ProvideClustersAndListeners will break down swarm service definitions into clusters and listerners internally those are composed of endpoints routes etc.
+func (s SwarmProvider) ProvideClustersAndListeners(ctx context.Context) (clusters []types.Resource, listeners []types.Resource, err error) {
 	// Make sure we have up-to-date info about our ingress network
 	ingress, err := s.getIngressNetwork(ctx)
 	if err != nil {
@@ -60,19 +55,17 @@ func (s SwarmProvider) ProvideADS(ctx context.Context) (
 		log := s.logger.WithFields(logger.Fields{"swarm-service-id": service.ID})
 
 		// If any errors occur here, we'll just skip the service otherwise one config error can nullify the entire cluster
-		cluster, endpoint, vhost, err := s.convertService(&service, &ingress)
+		cluster, vhost, err := s.convertService(&service, &ingress)
 		if err != nil {
 			log.Warnf("skipped generating ADS for service because %s", err.Error())
 			continue
 		}
 
 		clusters = append(clusters, cluster)
-		endpoints = append(endpoints, endpoint)
 		vhosts = append(vhosts, vhost)
 	}
 
 	r := s.configureRoutes(vhosts)
-	routes = append(routes, r)
 	listeners = append(listeners, s.configureHttpListener(r))
 
 	return

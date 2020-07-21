@@ -89,7 +89,7 @@ func (s SwarmProvider) convertServiceToRouteVHost(service *swarm.Service, labels
 }
 
 // convertService will convert swarm service definitions into validated envoy resources
-func (s SwarmProvider) convertService(service *swarm.Service, ingress *swarmtypes.NetworkResource) (cluster *cluster.Cluster, endpoint *endpoint.ClusterLoadAssignment, virtualHost *route.VirtualHost, err error) {
+func (s SwarmProvider) convertService(service *swarm.Service, ingress *swarmtypes.NetworkResource) (cluster *cluster.Cluster, virtualHost *route.VirtualHost, err error) {
 	// We need at least a port and domain where we can
 	labels := ParseServiceLabels(service.Spec.Labels)
 	if labels.endpoint.port.PortValue <= 0 {
@@ -109,17 +109,17 @@ func (s SwarmProvider) convertService(service *swarm.Service, ingress *swarmtype
 		return
 	}
 
-	cluster = s.convertServiceToCluster(service)
+	endp := s.convertServiceToEndpoint(service, labels)
+	if err = endp.Validate(); err != nil {
+		return
+	}
+
+	cluster = s.convertServiceToCluster(service, endp)
 	if err = cluster.Validate(); err != nil {
 		return
 	}
 
-	endpoint = s.convertServiceToEndpoint(service, &labels)
-	if err = endpoint.Validate(); err != nil {
-		return
-	}
-
-	virtualHost = s.convertServiceToRouteVHost(service, &labels)
+	virtualHost = s.convertServiceToRouteVHost(service, labels)
 	return
 }
 
@@ -156,12 +156,13 @@ func (s SwarmProvider) convertServiceToEndpoint(service *swarm.Service, labels *
 	}
 }
 
-func (s SwarmProvider) convertServiceToCluster(service *swarm.Service) *cluster.Cluster {
+func (s SwarmProvider) convertServiceToCluster(service *swarm.Service, endpoint *endpoint.ClusterLoadAssignment) *cluster.Cluster {
 	return &cluster.Cluster{
 		Name:                 service.Spec.Name,
 		ConnectTimeout:       ptypes.DurationProto(2 * time.Second),
 		ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_STRICT_DNS},
 		RespectDnsTtl:        false,                                 // Default TTL is 600, which is too long in the case of scaling
 		DnsRefreshRate:       ptypes.DurationProto(5 * time.Second), // When scaling, swarm CLI awaits 5 seconds before marking the service converged
+		LoadAssignment:       endpoint,
 	}
 }

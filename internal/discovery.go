@@ -35,9 +35,9 @@ func discoverSwarm(p docker.SwarmProvider, c cache.SnapshotCache, nodeId string)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	// We don't support some resources yet, nullify them
-	var runtimes []types.Resource
-	endpoints, clusters, routes, listeners, err := p.ProvideADS(ctx)
+	// endpoints and routes are embedded in the clusters and listeners. Other resources are not yet supported
+	var endpoints, routes, runtimes []types.Resource
+	clusters, listeners, err := p.ProvideClustersAndListeners(ctx)
 	if err != nil {
 		return err
 	}
