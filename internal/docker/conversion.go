@@ -12,6 +12,7 @@ import (
 	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/wrappers"
 	"time"
 )
 
@@ -164,5 +165,13 @@ func (s SwarmProvider) convertServiceToCluster(service *swarm.Service, endpoint 
 		RespectDnsTtl:        false,                                 // Default TTL is 600, which is too long in the case of scaling
 		DnsRefreshRate:       ptypes.DurationProto(5 * time.Second), // When scaling, swarm CLI awaits 5 seconds before marking the service converged
 		LoadAssignment:       endpoint,
+		UpstreamConnectionOptions: &cluster.UpstreamConnectionOptions{
+			// Unsure if these values make sense, I lowered the linux defaults as I expect the network to be more reliable than the www
+			TcpKeepalive: &core.TcpKeepalive{
+				KeepaliveProbes:   &wrappers.UInt32Value{Value: uint32(3)},
+				KeepaliveTime:     &wrappers.UInt32Value{Value: uint32(3600)},
+				KeepaliveInterval: &wrappers.UInt32Value{Value: uint32(60)},
+			},
+		},
 	}
 }
