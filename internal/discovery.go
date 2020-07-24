@@ -10,26 +10,34 @@ import (
 )
 
 func RunSwarmServiceDiscovery(ctx context.Context, p docker.SwarmProvider, c cache.SnapshotCache, nodeId string) {
-	logger.Debugf("starting swarm discovery")
+	logger.Debugf("running initial swarm discovery")
 	if err := discoverSwarm(p, c, nodeId); err != nil {
 		// Any error during initial is going to cause os.exit as it guarantees fast feedback for initial setup.
 		logger.Fatalf(err.Error())
 	}
 
-	pollContext, cancel := context.WithCancel(context.Background())
-	swarmServiceChange := p.ListenToServiceChanges(pollContext)
+	tailContext, cancel := context.WithCancel(context.Background())
+	logger.Debugf("starting event based discovery")
+	go handleSwarmEvents(tailContext, p, c, nodeId)
 	defer cancel()
 
+	<-ctx.Done()
+}
+
+func handleSwarmEvents(ctx context.Context, p docker.SwarmProvider, c cache.SnapshotCache, nodeId string) {
+	events, errorEvent := p.ListenForEvents(ctx)
 	for {
 		select {
-		case <-ctx.Done():
-			cancel()
-			return
-		case <-swarmServiceChange:
-			logger.Infof("a swarm service event triggered a new swarm service discovery")
+		case <-events:
+			logger.Debugf("received service event from docker, running discovery")
 			if err := discoverSwarm(p, c, nodeId); err != nil {
 				logger.Errorf(err.Error())
 			}
+		case err := <-errorEvent:
+			logger.Errorf("received error while listening to swarm events: %s", err.Error())
+
+			// Auto recover on errors @see github.com/docker/engine/client/events.go:19
+			events, errorEvent = p.ListenForEvents(ctx)
 		}
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	swarmtypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
@@ -38,28 +39,10 @@ func NewSwarmProvider(ingressNetwork string, logger logger.Logger) SwarmProvider
 	}
 }
 
-// GetServiceStream will create an auto-recovering event stream that is only canceled when you cancel the context
-func (s SwarmProvider) ListenToServiceChanges(ctx context.Context) <-chan bool {
-	upstream := make(chan bool)
-	eventOptions := swarmtypes.EventsOptions{
+func (s SwarmProvider) ListenForEvents(ctx context.Context) (<-chan events.Message, <-chan error) {
+	return s.dockerClient.Events(ctx, swarmtypes.EventsOptions{
 		Filters: filters.NewArgs(filters.KeyValuePair{Key: "type", Value: "service"}),
-	}
-
-	// Listen in a separate goroutine to prevent event handlers in upstream from blocking
-	go func(upstream chan bool, eventOptions swarmtypes.EventsOptions) {
-		events, errorEvent := s.dockerClient.Events(ctx, eventOptions)
-		for {
-			select {
-			case <-events:
-				upstream <- true
-			case err := <-errorEvent:
-				s.logger.Errorf("received error while listening to swarm events: %s", err.Error())
-				events, errorEvent = s.dockerClient.Events(ctx, eventOptions)
-			}
-		}
-	}(upstream, eventOptions)
-
-	return upstream
+	})
 }
 
 // ProvideClustersAndListeners will break down swarm service definitions into clusters and listerners internally those are composed of endpoints routes etc.
