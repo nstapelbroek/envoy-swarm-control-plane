@@ -10,24 +10,27 @@ import (
 )
 
 func RunSwarmServiceDiscovery(ctx context.Context, p docker.SwarmProvider, c cache.SnapshotCache, nodeId string) {
+	logger.Debugf("starting swarm discovery")
 	if err := discoverSwarm(p, c, nodeId); err != nil {
 		// Any error during initial is going to cause os.exit as it guarantees fast feedback for initial setup.
 		logger.Fatalf(err.Error())
 	}
 
-	logger.Infof("initial service discovery done.")
-	ticker := time.NewTicker(30 * time.Second)
+	pollContext, cancel := context.WithCancel(context.Background())
+	swarmServiceChange := p.ListenToServiceChanges(pollContext)
+	defer cancel()
 
-	select {
-	case <-ticker.C:
-		// todo would be really cool on the long term to replae the ticker with an event listener
-		// This might work out for us as we plan to rely fully on the routing mesh vip
-		if err := discoverSwarm(p, c, nodeId); err != nil {
-			logger.Errorf(err.Error())
+	for {
+		select {
+		case <-ctx.Done():
+			cancel()
+			return
+		case <-swarmServiceChange:
+			logger.Infof("a swarm service event triggered a new swarm service discovery")
+			if err := discoverSwarm(p, c, nodeId); err != nil {
+				logger.Errorf(err.Error())
+			}
 		}
-	case <-ctx.Done():
-		ticker.Stop()
-		return
 	}
 }
 
@@ -42,7 +45,8 @@ func discoverSwarm(p docker.SwarmProvider, c cache.SnapshotCache, nodeId string)
 		return err
 	}
 
-	snapShot := cache.NewSnapshot("1.0", endpoints, clusters, routes, listeners, runtimes)
+	currentTime := time.Now()
+	snapShot := cache.NewSnapshot(currentTime.Format(time.RFC3339), endpoints, clusters, routes, listeners, runtimes)
 	err = c.SetSnapshot(nodeId, snapShot)
 	if err != nil {
 		return err
@@ -54,6 +58,6 @@ func discoverSwarm(p docker.SwarmProvider, c cache.SnapshotCache, nodeId string)
 		"route-count":    len(routes),
 		"listener-count": len(listeners),
 		"runtime-count":  len(runtimes),
-	}).Debugf("Updated snapshot from Swarm Discovery")
+	}).Debugf("Updated snapshot")
 	return nil
 }
