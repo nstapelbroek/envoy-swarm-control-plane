@@ -7,8 +7,9 @@ services:
       labels:
         - envoy.endpoint.protocol=tcp # default, other option: udp
         - envoy.endpoint.port=80 # required, only one port per service atm though
-        - envoy.route.domains=nstapelbroek.com # not implemented yet
-        - envoy.route.path=/ # not implemented yet
+        - envoy.route.domain=nstapelbroek.com # required
+        - envoy.route.extra-domains=nstapelbroek.nl,www.nstapelbroek.com,nwgs.nl # optional
+        - envoy.route.path=/ # default
     networks:
       - default
       - edge-traffic

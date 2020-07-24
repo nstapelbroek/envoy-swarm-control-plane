@@ -1,6 +1,7 @@
-package docker
+package conversion
 
 import (
+	"errors"
 	types "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"regexp"
 	"strconv"
@@ -8,18 +9,19 @@ import (
 )
 
 type ServiceEndpoint struct {
-	protocol types.SocketAddress_Protocol
-	port     types.SocketAddress_PortValue
+	Protocol types.SocketAddress_Protocol
+	Port     types.SocketAddress_PortValue
 }
 
 type ServiceRoute struct {
-	domains []string
-	path    string
+	Domain       string
+	ExtraDomains []string
+	Path         string
 }
 
 type ServiceLabel struct {
-	endpoint ServiceEndpoint
-	route    ServiceRoute
+	Endpoint ServiceEndpoint
+	Route    ServiceRoute
 }
 
 func (l *ServiceLabel) setEndpointProp(property string, value string) {
@@ -30,10 +32,10 @@ func (l *ServiceLabel) setEndpointProp(property string, value string) {
 			p = types.SocketAddress_UDP
 		}
 
-		l.endpoint.protocol = p
+		l.Endpoint.Protocol = p
 	case "port":
 		v, _ := strconv.ParseUint(value, 10, 32)
-		l.endpoint.port = types.SocketAddress_PortValue{
+		l.Endpoint.Port = types.SocketAddress_PortValue{
 			PortValue: uint32(v),
 		}
 	}
@@ -42,9 +44,11 @@ func (l *ServiceLabel) setEndpointProp(property string, value string) {
 func (l *ServiceLabel) setRouteProp(property string, value string) {
 	switch strings.ToLower(property) {
 	case "path":
-		l.route.path = value
-	case "domains":
-		l.route.domains = strings.Split(value, ",")
+		l.Route.Path = value
+	case "domain":
+		l.Route.Domain = value
+	case "extra-domains":
+		l.Route.ExtraDomains = strings.Split(value, ",")
 	}
 }
 
@@ -54,12 +58,12 @@ var serviceLabelRegex = regexp.MustCompile(`(?Uim)envoy\.(?P<type>\S+)\.(?P<prop
 func NewServiceLabel() ServiceLabel {
 	return ServiceLabel{
 		ServiceEndpoint{
-			protocol: types.SocketAddress_TCP,
-			port:     types.SocketAddress_PortValue{PortValue: 0},
+			Protocol: types.SocketAddress_TCP,
+			Port:     types.SocketAddress_PortValue{PortValue: 0},
 		},
 		ServiceRoute{
-			domains: []string{},
-			path:    "/",
+			ExtraDomains: []string{},
+			Path:         "/",
 		},
 	}
 }
@@ -83,4 +87,16 @@ func ParseServiceLabels(labels map[string]string) *ServiceLabel {
 	}
 
 	return &s
+}
+
+func (l ServiceLabel) Validate() error {
+	if l.Endpoint.Port.PortValue <= 0 {
+		return errors.New("there is no endpoint.port label specified")
+	}
+
+	if len(l.Route.Domain) == 0 {
+		return errors.New("there is no route.domain label specified")
+	}
+
+	return nil
 }

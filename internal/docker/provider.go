@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	swarmtypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/docker/conversion"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
 )
 
@@ -50,23 +51,38 @@ func (s SwarmProvider) ProvideClustersAndListeners(ctx context.Context) (cluster
 		return
 	}
 
-	var vhosts []*route.VirtualHost
+	weblistener := conversion.NewWebListener()
 	for _, service := range services {
-		log := s.logger.WithFields(logger.Fields{"swarm-service-id": service.ID})
+		log := s.logger.WithFields(logger.Fields{"swarm-service-id": service.ID, "swarm-service-name": service.Spec.Name})
+		labels := conversion.ParseServiceLabels(service.Spec.Labels)
+		if err = labels.Validate(); err != nil {
+			log.Debugf("skipping service because labels are invalid: %s", err.Error())
+			continue
+		}
 
-		// If any errors occur here, we'll just skip the service otherwise one config error can nullify the entire cluster
-		cluster, vhost, err := s.convertService(&service, &ingress)
+		// Prevent confusion by filtering out services that are not properly connected
+		// DNS requests will return empty responses if a service is not connected to the shared ingress network
+		if !inIngressNetwork(&service, &ingress) {
+			log.Warnf("service is not connected to the ingress network, stopping processing")
+			continue
+		}
+
+		cluster, err := conversion.ServiceToCluster(&service, labels)
 		if err != nil {
-			log.Warnf("skipped generating ADS for service because %s", err.Error())
+			log.Warnf("skipped generating CDS for service because %s", err.Error())
+			continue
+		}
+
+		err = weblistener.AddRoute(cluster.Name, labels)
+		if err != nil {
+			log.Warnf("skipped creating vhost for service because %s", err.Error())
 			continue
 		}
 
 		clusters = append(clusters, cluster)
-		vhosts = append(vhosts, vhost)
 	}
 
-	r := s.configureRoutes(vhosts)
-	listeners = append(listeners, s.configureHttpListener(r))
+	listeners = append(listeners, weblistener.BuildListener())
 
 	return
 }
@@ -82,4 +98,14 @@ func (s SwarmProvider) getIngressNetwork(ctx context.Context) (network swarmtype
 	}
 
 	return
+}
+
+func inIngressNetwork(service *swarm.Service, ingress *swarmtypes.NetworkResource) bool {
+	for _, vip := range service.Endpoint.VirtualIPs {
+		if vip.NetworkID == ingress.ID {
+			return true
+		}
+	}
+
+	return false
 }
