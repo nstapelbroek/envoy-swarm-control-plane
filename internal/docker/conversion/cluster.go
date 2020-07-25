@@ -53,8 +53,8 @@ func convertServiceToCluster(service *swarm.Service, endpoint *endpoint.ClusterL
 		Name:                 service.Spec.Name,
 		ConnectTimeout:       ptypes.DurationProto(2 * time.Second),
 		ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_STRICT_DNS},
-		RespectDnsTtl:        false,                                 // Default TTL is 600, which is too long in the case of scaling
-		DnsRefreshRate:       ptypes.DurationProto(5 * time.Second), // When scaling, swarm CLI awaits 5 seconds before marking the service converged
+		RespectDnsTtl:        false,                                 // Default TTL is 600, which is too long in the case of scaling down
+		DnsRefreshRate:       ptypes.DurationProto(4 * time.Second), // When updating services, swarms default delay is 5 seconds, setting this to 4 leaves us with a 1 drain time (worst case)
 		LoadAssignment:       endpoint,
 		UpstreamConnectionOptions: &cluster.UpstreamConnectionOptions{
 			// Unsure if these values make sense, I lowered the linux defaults as I expect the network to be more reliable than the www
