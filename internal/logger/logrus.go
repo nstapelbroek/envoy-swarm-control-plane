@@ -2,8 +2,9 @@
 package logger
 
 import (
-	"github.com/sirupsen/logrus"
 	"os"
+
+	"github.com/sirupsen/logrus"
 )
 
 type logrusLogEntry struct {

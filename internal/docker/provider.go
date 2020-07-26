@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"errors"
+
 	swarmtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -19,7 +20,7 @@ type SwarmProvider struct {
 	logger         logger.Logger
 }
 
-func NewSwarmProvider(ingressNetwork string, logger logger.Logger) SwarmProvider {
+func NewSwarmProvider(ingressNetwork string, log logger.Logger) SwarmProvider {
 	httpHeaders := map[string]string{
 		"User-Agent": "Envoy Swarm Control Plane",
 	}
@@ -35,7 +36,7 @@ func NewSwarmProvider(ingressNetwork string, logger logger.Logger) SwarmProvider
 	return SwarmProvider{
 		dockerClient:   c,
 		ingressNetwork: ingressNetwork,
-		logger:         logger,
+		logger:         log,
 	}
 }
 
@@ -45,8 +46,8 @@ func (s SwarmProvider) ListenForEvents(ctx context.Context) (<-chan events.Messa
 	})
 }
 
-// ProvideClustersAndListeners will break down swarm service definitions into clusters and listerners internally those are composed of endpoints routes etc.
-func (s SwarmProvider) ProvideClustersAndListeners(ctx context.Context) (clusters []types.Resource, listeners []types.Resource, err error) {
+// ProvideClustersAndListeners will break down swarm service definitions into clusters and listeners internally those are composed of endpoints routes etc.
+func (s SwarmProvider) ProvideClustersAndListeners(ctx context.Context) (clusters, listeners []types.Resource, err error) {
 	// Make sure we have up-to-date info about our ingress network
 	ingress, err := s.getIngressNetwork(ctx)
 	if err != nil {
@@ -60,8 +61,9 @@ func (s SwarmProvider) ProvideClustersAndListeners(ctx context.Context) (cluster
 	}
 
 	weblistener := conversion.NewWebListener()
-	for _, service := range services {
-		log := s.logger.WithFields(logger.Fields{"swarm-service-id": service.ID, "swarm-service-name": service.Spec.Name})
+	for i := range services {
+		service := &services[i]
+		log := s.logger.WithFields(logger.Fields{"swarm-service-name": service.Spec.Name})
 		labels := conversion.ParseServiceLabels(service.Spec.Labels)
 		if err = labels.Validate(); err != nil {
 			log.Debugf("skipping service because labels are invalid: %s", err.Error())
@@ -70,12 +72,12 @@ func (s SwarmProvider) ProvideClustersAndListeners(ctx context.Context) (cluster
 
 		// Prevent confusion by filtering out services that are not properly connected
 		// DNS requests will return empty responses if a service is not connected to the shared ingress network
-		if !inIngressNetwork(&service, &ingress) {
+		if !inIngressNetwork(service, &ingress) {
 			log.Warnf("service is not connected to the ingress network, stopping processing")
 			continue
 		}
 
-		cluster, err := conversion.ServiceToCluster(&service, labels)
+		cluster, err := conversion.ServiceToCluster(service, labels)
 		if err != nil {
 			log.Warnf("skipped generating CDS for service because %s", err.Error())
 			continue
@@ -92,7 +94,7 @@ func (s SwarmProvider) ProvideClustersAndListeners(ctx context.Context) (cluster
 
 	listeners = append(listeners, weblistener.BuildListener())
 
-	return
+	return clusters, listeners, nil
 }
 
 func (s SwarmProvider) getIngressNetwork(ctx context.Context) (network swarmtypes.NetworkResource, err error) {

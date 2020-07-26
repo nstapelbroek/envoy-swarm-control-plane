@@ -14,7 +14,7 @@ func Instance() Logger {
 	return log
 }
 
-//Logger is our contract for the logger
+// Logger is our contract for the logger
 type Logger interface {
 	Debugf(format string, args ...interface{})
 

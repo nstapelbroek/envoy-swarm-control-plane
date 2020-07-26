@@ -3,6 +3,7 @@ package conversion
 import (
 	"errors"
 	"fmt"
+
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
@@ -24,7 +25,7 @@ func NewWebListener() *WebListener {
 func (w WebListener) AddRoute(clusterIdentifier string, labels *ServiceLabel) (err error) {
 	primaryDomain := labels.Route.Domain
 	for _, extraDomain := range labels.Route.ExtraDomains {
-		if err = w.validateExtraDomain(extraDomain); err != nil {
+		if err := w.validateExtraDomain(extraDomain); err != nil {
 			return err
 		}
 	}
@@ -38,9 +39,7 @@ func (w WebListener) AddRoute(clusterIdentifier string, labels *ServiceLabel) (e
 		}
 	}
 
-	for _, domain := range labels.Route.ExtraDomains {
-		virtualHost.Domains = append(virtualHost.Domains, domain)
-	}
+	virtualHost.Domains = append(virtualHost.Domains, labels.Route.ExtraDomains...)
 
 	newRoute := &route.Route{
 		Name: clusterIdentifier + "_route",
@@ -57,7 +56,7 @@ func (w WebListener) AddRoute(clusterIdentifier string, labels *ServiceLabel) (e
 			},
 		},
 	}
-	if err = newRoute.Validate(); err != nil {
+	if err := newRoute.Validate(); err != nil {
 		return err
 	}
 
@@ -103,7 +102,7 @@ func (w WebListener) validateExtraDomain(domain string) error {
 	}
 
 	if w.vhosts[domain] != nil {
-		return errors.New(fmt.Sprintf("domain %s is already used as a primary domain in another vhost", domain))
+		return fmt.Errorf("domain %s is already used as a primary domain in another vhost", domain)
 	}
 
 	return nil

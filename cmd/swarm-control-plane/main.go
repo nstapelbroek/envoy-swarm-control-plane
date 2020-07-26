@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/docker"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 var (
@@ -49,14 +50,11 @@ func main() {
 	waitForSignal(mainContext)
 }
 
-func waitForSignal(ctx context.Context) {
+func waitForSignal(application context.Context) {
 	s := make(chan os.Signal, 1)
 	signal.Notify(s, syscall.SIGINT, syscall.SIGTERM)
 
-	select {
-	case <-s:
-		logger.Infof("SIGINT Received, shutting down...")
-		ctx.Done()
-		return
-	}
+	<-s
+	logger.Infof("SIGINT Received, shutting down...")
+	application.Done()
 }

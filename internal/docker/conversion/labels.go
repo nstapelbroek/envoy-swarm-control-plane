@@ -2,10 +2,11 @@ package conversion
 
 import (
 	"errors"
-	types "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"regexp"
 	"strconv"
 	"strings"
+
+	types "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 )
 
 type ServiceEndpoint struct {
@@ -24,11 +25,11 @@ type ServiceLabel struct {
 	Route    ServiceRoute
 }
 
-func (l *ServiceLabel) setEndpointProp(property string, value string) {
+func (l *ServiceLabel) setEndpointProp(property, value string) {
 	switch strings.ToLower(property) {
 	case "protocol":
 		p := types.SocketAddress_TCP
-		if strings.ToLower(value) == "udp" {
+		if strings.EqualFold(value, "udp") {
 			p = types.SocketAddress_UDP
 		}
 
@@ -41,7 +42,7 @@ func (l *ServiceLabel) setEndpointProp(property string, value string) {
 	}
 }
 
-func (l *ServiceLabel) setRouteProp(property string, value string) {
+func (l *ServiceLabel) setRouteProp(property, value string) {
 	switch strings.ToLower(property) {
 	case "path":
 		l.Route.Path = value
@@ -83,7 +84,6 @@ func ParseServiceLabels(labels map[string]string) *ServiceLabel {
 		case "route":
 			s.setRouteProp(matches[2], value)
 		}
-
 	}
 
 	return &s
@@ -94,7 +94,7 @@ func (l ServiceLabel) Validate() error {
 		return errors.New("there is no endpoint.port label specified")
 	}
 
-	if len(l.Route.Domain) == 0 {
+	if l.Route.Domain == "" {
 		return errors.New("there is no route.domain label specified")
 	}
 

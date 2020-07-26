@@ -7,11 +7,8 @@ linters-settings:
       - performance
       - style
     disabled-checks:
-      - dupImport
-      - ifElseChain
       - octalLiteral
-      - whyNoLint
-      - wrapperFunc
+      - unnamedResult
   goimports:
     local-prefixes: github.com/golangci/golangci-lint
   gomnd:
