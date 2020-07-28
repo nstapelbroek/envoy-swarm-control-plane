@@ -10,8 +10,8 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/docker/conversion"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/docker/conversion"
 )
 
 type SwarmProvider struct {

@@ -9,8 +9,8 @@ import (
 
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/docker"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/docker"
 )
 
 var (

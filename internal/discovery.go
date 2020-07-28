@@ -6,8 +6,8 @@ import (
 
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/docker"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/docker"
 )
 
 func RunSwarmServiceDiscovery(ctx context.Context, p docker.SwarmProvider, c cache.SnapshotCache, nodeID string) {
