@@ -4,6 +4,8 @@ package logger
 import (
 	"os"
 
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -50,7 +52,7 @@ func (l *logrusLogger) Panicf(format string, args ...interface{}) {
 	l.logger.Fatalf(format, args...)
 }
 
-func (l *logrusLogger) WithFields(fields Fields) Logger {
+func (l *logrusLogger) WithFields(fields logger.Fields) logger.Logger {
 	return &logrusLogEntry{
 		entry: l.logger.WithFields(convertToLogrusFields(fields)),
 	}
@@ -80,13 +82,13 @@ func (l *logrusLogEntry) Panicf(format string, args ...interface{}) {
 	l.entry.Fatalf(format, args...)
 }
 
-func (l *logrusLogEntry) WithFields(fields Fields) Logger {
+func (l *logrusLogEntry) WithFields(fields logger.Fields) logger.Logger {
 	return &logrusLogEntry{
 		entry: l.entry.WithFields(convertToLogrusFields(fields)),
 	}
 }
 
-func convertToLogrusFields(fields Fields) logrus.Fields {
+func convertToLogrusFields(fields logger.Fields) logrus.Fields {
 	logrusFields := logrus.Fields{}
 	for index, val := range fields {
 		logrusFields[index] = val

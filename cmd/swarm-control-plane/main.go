@@ -7,10 +7,14 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/discovery"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/producer"
+
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/docker"
+	internalLogger "github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/docker"
 )
 
 var (
@@ -31,23 +35,43 @@ func init() {
 
 func main() {
 	flag.Parse()
-	logger.BootLogger(debug)
+	internalLogger.BootLogger(debug)
+	main := context.Background()
 
+	// serving snapshots to our proxies
 	snapshotCache := cache.NewSnapshotCache(
 		true,
 		cache.IDHash{},
-		logger.Instance().WithFields(logger.Fields{"area": "snapshot-cache"}),
+		internalLogger.Instance().WithFields(logger.Fields{"area": "snapshot-cache"}),
 	)
+
+	go internal.RunGRPCServer(main, snapshotCache, port)
+
+	// Internals to produce new snapshots
+	UpdateEvents := make(chan discovery.Reason)
+
 	provider := docker.NewSwarmProvider(
 		ingressNetwork,
-		logger.Instance().WithFields(logger.Fields{"area": "provider"}),
+		internalLogger.Instance().WithFields(logger.Fields{"area": "provider"}),
 	)
 
-	mainContext := context.Background()
-	go internal.RunSwarmServiceDiscovery(mainContext, provider, snapshotCache, nodeID)
-	go internal.RunGRPCServer(mainContext, snapshotCache, port)
+	consumer := internal.NewDiscovery(
+		provider,
+		snapshotCache,
+		internalLogger.Instance().WithFields(logger.Fields{"area": "discovery"}),
+		nodeID,
+	)
 
-	waitForSignal(mainContext)
+	sp := producer.NewSwarmEventProducer(
+		provider,
+		internalLogger.Instance().WithFields(logger.Fields{"area": "swarm-events"}),
+	)
+
+	go consumer.Watch(UpdateEvents)
+	go sp.UpdateOnSwarmEvents(main, UpdateEvents)
+	go producer.InitialStartup(UpdateEvents)
+
+	waitForSignal(main)
 }
 
 func waitForSignal(application context.Context) {
@@ -55,6 +79,6 @@ func waitForSignal(application context.Context) {
 	signal.Notify(s, syscall.SIGINT, syscall.SIGTERM)
 
 	<-s
-	logger.Infof("SIGINT Received, shutting down...")
+	internalLogger.Infof("SIGINT Received, shutting down...")
 	application.Done()
 }

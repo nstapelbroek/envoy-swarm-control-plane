@@ -1,34 +1,19 @@
 // See https://www.mountedthoughts.com/golang-logger-interface/
 package logger
 
-// A global variable so that log functions can be directly accessed
-var log Logger
+import (
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
+)
 
-type Fields map[string]interface{}
+// A global variable so that log functions can be directly accessed
+var log logger.Logger
 
 func BootLogger(debug bool) {
 	log = newLogrusLogger(debug)
 }
 
-func Instance() Logger {
+func Instance() logger.Logger {
 	return log
-}
-
-// Logger is our contract for the logger
-type Logger interface {
-	Debugf(format string, args ...interface{})
-
-	Infof(format string, args ...interface{})
-
-	Warnf(format string, args ...interface{})
-
-	Errorf(format string, args ...interface{})
-
-	Fatalf(format string, args ...interface{})
-
-	Panicf(format string, args ...interface{})
-
-	WithFields(keyValues Fields) Logger
 }
 
 func Debugf(format string, args ...interface{}) {
@@ -55,6 +40,6 @@ func Panicf(format string, args ...interface{}) {
 	log.Panicf(format, args...)
 }
 
-func WithFields(keyValues Fields) Logger {
+func WithFields(keyValues logger.Fields) logger.Logger {
 	return log.WithFields(keyValues)
 }

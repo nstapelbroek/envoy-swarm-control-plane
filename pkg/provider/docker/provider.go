@@ -10,8 +10,8 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/docker/conversion"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/docker/conversion"
 )
 
 type SwarmProvider struct {
@@ -40,7 +40,7 @@ func NewSwarmProvider(ingressNetwork string, log logger.Logger) SwarmProvider {
 	}
 }
 
-func (s SwarmProvider) ListenForEvents(ctx context.Context) (<-chan events.Message, <-chan error) {
+func (s SwarmProvider) Events(ctx context.Context) (<-chan events.Message, <-chan error) {
 	return s.dockerClient.Events(ctx, swarmtypes.EventsOptions{
 		Filters: filters.NewArgs(filters.KeyValuePair{Key: "type", Value: "service"}),
 	})
