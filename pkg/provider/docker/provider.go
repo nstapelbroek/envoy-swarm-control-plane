@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/docker/conversion"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/docker/converting"
 )
 
 type SwarmProvider struct {
@@ -60,11 +60,11 @@ func (s SwarmProvider) ProvideClustersAndListener(ctx context.Context) (clusters
 		return
 	}
 
-	vhosts := conversion.NewVhostCollection()
+	vhosts := converting.NewVhostCollection()
 	for i := range services {
 		service := &services[i]
 		log := s.logger.WithFields(logger.Fields{"swarm-service-name": service.Spec.Name})
-		labels := conversion.ParseServiceLabels(service.Spec.Labels)
+		labels := converting.ParseServiceLabels(service.Spec.Labels)
 		if err = labels.Validate(); err != nil {
 			log.Debugf("skipping service because labels are invalid: %s", err.Error())
 			continue
@@ -77,7 +77,7 @@ func (s SwarmProvider) ProvideClustersAndListener(ctx context.Context) (clusters
 			continue
 		}
 
-		cluster, err := conversion.ServiceToCluster(service, labels)
+		cluster, err := converting.ServiceToCluster(service, labels)
 		if err != nil {
 			log.Warnf("skipped generating CDS for service because %s", err.Error())
 			continue
