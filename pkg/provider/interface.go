@@ -11,4 +11,5 @@ type Resource interface {
 }
 
 type TLS interface {
+	UpgradeHttpListener(listener types.Resource) []types.Resource
 }

@@ -12,18 +12,20 @@ import (
 )
 
 type Discovery struct {
-	provider      provider.Provider
-	snapshotCache cache.SnapshotCache
-	logger        logger.Logger
-	nodeID        string
+	resourceProvider provider.Resource
+	tlsProvider      provider.TLS
+	snapshotCache    cache.SnapshotCache
+	logger           logger.Logger
+	nodeID           string
 }
 
-func NewDiscovery(p provider.Provider, c cache.SnapshotCache, log logger.Logger, nodeID string) *Discovery {
+func NewDiscovery(p provider.Resource, c cache.SnapshotCache, log logger.Logger, nodeID string) *Discovery {
 	return &Discovery{
-		provider:      p,
-		snapshotCache: c,
-		logger:        log,
-		nodeID:        nodeID,
+		resourceProvider: p,
+		tlsProvider:      nil,
+		snapshotCache:    c,
+		logger:           log,
+		nodeID:           nodeID,
 	}
 }
 
@@ -38,17 +40,30 @@ func (d Discovery) Watch(updateChannel chan discovery.Reason) {
 
 func (d Discovery) discoverSwarm(reason discovery.Reason) error {
 	d.logger.WithFields(logger.Fields{"reason": reason}).Debugf("Running service discovery")
-	const dockerAPITimeout = 2 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), dockerAPITimeout)
+
+	const discoveryTimeout = 5 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), discoveryTimeout)
 	defer cancel()
 
 	// endpoints and routes are embedded in the clusters and listeners. Other resources are not yet supported
-	var endpoints, routes, runtimes []types.Resource
-	clusters, listeners, err := d.provider.ProvideClustersAndListeners(ctx)
+	var endpoints, routes, runtimes, listeners []types.Resource
+
+	clusters, httpListener, err := d.resourceProvider.ProvideClustersAndListener(ctx)
 	if err != nil {
 		return err
 	}
 
+	if d.tlsProvider != nil {
+		listeners = d.tlsProvider.UpgradeHttpListener(httpListener)
+	} else {
+		listeners = append(listeners, httpListener)
+	}
+
+	return d.createSnapshot(endpoints, clusters, routes, listeners, runtimes, err)
+}
+
+func (d Discovery) createSnapshot(endpoints []types.Resource, clusters []types.Resource, routes []types.Resource, listeners []types.Resource, runtimes []types.Resource, err error) error {
+	// todo this would be the point where we write it to all node ids?
 	currentTime := time.Now()
 	snapShot := cache.NewSnapshot(currentTime.Format(time.RFC3339), endpoints, clusters, routes, listeners, runtimes)
 	err = d.snapshotCache.SetSnapshot(d.nodeID, snapShot)
