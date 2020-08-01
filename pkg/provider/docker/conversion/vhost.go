@@ -12,17 +12,17 @@ import (
 	"github.com/golang/protobuf/ptypes"
 )
 
-type WebListener struct {
+type VhostCollection struct {
 	vhosts map[string]*route.VirtualHost
 }
 
-func NewWebListener() *WebListener {
-	return &WebListener{
+func NewVhostCollection() *VhostCollection {
+	return &VhostCollection{
 		vhosts: make(map[string]*route.VirtualHost),
 	}
 }
 
-func (w WebListener) AddRoute(clusterIdentifier string, labels *ServiceLabel) (err error) {
+func (w VhostCollection) AddRoute(clusterIdentifier string, labels *ServiceLabel) (err error) {
 	primaryDomain := labels.Route.Domain
 	for _, extraDomain := range labels.Route.ExtraDomains {
 		if err := w.validateExtraDomain(extraDomain); err != nil {
@@ -66,7 +66,7 @@ func (w WebListener) AddRoute(clusterIdentifier string, labels *ServiceLabel) (e
 	return nil
 }
 
-func (w WebListener) BuildListener() *listener.Listener {
+func (w VhostCollection) BuildListener() *listener.Listener {
 	mngr, err := ptypes.MarshalAny(w.buildConnectionManger())
 	if err != nil {
 		panic(err)
@@ -96,7 +96,7 @@ func (w WebListener) BuildListener() *listener.Listener {
 	}
 }
 
-func (w WebListener) validateExtraDomain(domain string) error {
+func (w VhostCollection) validateExtraDomain(domain string) error {
 	if domain == "*" {
 		return errors.New("wildcard cannot be used in an extra domain")
 	}
@@ -108,7 +108,7 @@ func (w WebListener) validateExtraDomain(domain string) error {
 	return nil
 }
 
-func (w WebListener) buildRouteConfig() *route.RouteConfiguration {
+func (w VhostCollection) buildRouteConfig() *route.RouteConfiguration {
 	r := &route.RouteConfiguration{Name: "swarm_routes"}
 	for _, host := range w.vhosts {
 		r.VirtualHosts = append(r.VirtualHosts, host)
@@ -117,7 +117,7 @@ func (w WebListener) buildRouteConfig() *route.RouteConfiguration {
 	return r
 }
 
-func (w WebListener) buildConnectionManger() *hcm.HttpConnectionManager {
+func (w VhostCollection) buildConnectionManger() *hcm.HttpConnectionManager {
 	return &hcm.HttpConnectionManager{
 		CodecType:      hcm.HttpConnectionManager_AUTO,
 		StatPrefix:     "http",

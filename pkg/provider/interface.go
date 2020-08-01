@@ -6,6 +6,9 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 )
 
-type Provider interface {
-	ProvideClustersAndListeners(ctx context.Context) (clusters, listeners []types.Resource, err error)
+type Resource interface {
+	ProvideClustersAndListener(ctx context.Context) (clusters []types.Resource, listeners types.Resource, err error)
+}
+
+type TLS interface {
 }

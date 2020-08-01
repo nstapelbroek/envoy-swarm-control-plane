@@ -46,8 +46,8 @@ func (s SwarmProvider) Events(ctx context.Context) (<-chan events.Message, <-cha
 	})
 }
 
-// ProvideClustersAndListeners will break down swarm service definitions into clusters and listeners internally those are composed of endpoints routes etc.
-func (s SwarmProvider) ProvideClustersAndListeners(ctx context.Context) (clusters, listeners []types.Resource, err error) {
+// ProvideClustersAndListener will break down swarm service definitions into clusters and listeners internally those are composed of endpoints routes etc.
+func (s SwarmProvider) ProvideClustersAndListener(ctx context.Context) (clusters []types.Resource, listener types.Resource, err error) {
 	// Make sure we have up-to-date info about our ingress network
 	ingress, err := s.getIngressNetwork(ctx)
 	if err != nil {
@@ -60,7 +60,7 @@ func (s SwarmProvider) ProvideClustersAndListeners(ctx context.Context) (cluster
 		return
 	}
 
-	weblistener := conversion.NewWebListener()
+	vhosts := conversion.NewVhostCollection()
 	for i := range services {
 		service := &services[i]
 		log := s.logger.WithFields(logger.Fields{"swarm-service-name": service.Spec.Name})
@@ -83,7 +83,7 @@ func (s SwarmProvider) ProvideClustersAndListeners(ctx context.Context) (cluster
 			continue
 		}
 
-		err = weblistener.AddRoute(cluster.Name, labels)
+		err = vhosts.AddRoute(cluster.Name, labels)
 		if err != nil {
 			log.Warnf("skipped creating vhost for service because %s", err.Error())
 			continue
@@ -92,9 +92,9 @@ func (s SwarmProvider) ProvideClustersAndListeners(ctx context.Context) (cluster
 		clusters = append(clusters, cluster)
 	}
 
-	listeners = append(listeners, weblistener.BuildListener())
+	listener = vhosts.BuildListener()
 
-	return clusters, listeners, nil
+	return clusters, listener, nil
 }
 
 func (s SwarmProvider) getIngressNetwork(ctx context.Context) (network swarmtypes.NetworkResource, err error) {
