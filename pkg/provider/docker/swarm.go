@@ -7,15 +7,16 @@ import (
 	swarmtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/docker/converting"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls"
 )
 
 type SwarmProvider struct {
 	dockerClient   client.APIClient
+	tlsProvider    *tls.Provider
 	ingressNetwork string // the network name/id where our envoy communicates with services
 	logger         logger.Logger
 }
@@ -47,7 +48,24 @@ func (s SwarmProvider) Events(ctx context.Context) (<-chan events.Message, <-cha
 }
 
 // ProvideClustersAndListener will break down swarm service definitions into clusters and listeners internally those are composed of endpoints routes etc.
-func (s SwarmProvider) ProvideClustersAndListener(ctx context.Context) (clusters []types.Resource, listener types.Resource, err error) {
+func (s SwarmProvider) Provide(ctx context.Context) (clusters, listeners []types.Resource, err error) {
+	clusters, vhosts, err := s.provideClustersAndVhosts(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if s.tlsProvider == nil {
+		listeners = append(listeners, mapVhostsToHTTPListener(vhosts))
+		return clusters, listeners, nil
+	}
+
+	// listeners = converting.MapVhostsToHttpsListener(vhosts, s.tlsProvider)
+	// go s.issueMissingCertificates(vhosts)
+
+	return clusters, listeners, nil
+}
+
+func (s SwarmProvider) provideClustersAndVhosts(ctx context.Context) (clusters []types.Resource, vhosts *converting.VhostCollection, err error) {
 	// Make sure we have up-to-date info about our ingress network
 	ingress, err := s.getIngressNetwork(ctx)
 	if err != nil {
@@ -60,10 +78,11 @@ func (s SwarmProvider) ProvideClustersAndListener(ctx context.Context) (clusters
 		return
 	}
 
-	vhosts := converting.NewVhostCollection()
+	vhosts = converting.NewVhostCollection()
 	for i := range services {
 		service := &services[i]
 		log := s.logger.WithFields(logger.Fields{"swarm-service-name": service.Spec.Name})
+
 		labels := converting.ParseServiceLabels(service.Spec.Labels)
 		if err = labels.Validate(); err != nil {
 			log.Debugf("skipping service because labels are invalid: %s", err.Error())
@@ -92,9 +111,7 @@ func (s SwarmProvider) ProvideClustersAndListener(ctx context.Context) (clusters
 		clusters = append(clusters, cluster)
 	}
 
-	listener = vhosts.BuildListener()
-
-	return clusters, listener, nil
+	return clusters, vhosts, nil
 }
 
 func (s SwarmProvider) getIngressNetwork(ctx context.Context) (network swarmtypes.NetworkResource, err error) {
@@ -108,14 +125,4 @@ func (s SwarmProvider) getIngressNetwork(ctx context.Context) (network swarmtype
 	}
 
 	return
-}
-
-func inIngressNetwork(service *swarm.Service, ingress *swarmtypes.NetworkResource) bool {
-	for _, vip := range service.Endpoint.VirtualIPs {
-		if vip.NetworkID == ingress.ID {
-			return true
-		}
-	}
-
-	return false
 }

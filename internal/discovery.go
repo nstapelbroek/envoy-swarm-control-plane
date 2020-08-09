@@ -29,7 +29,7 @@ func NewDiscovery(p provider.Resource, c cache.SnapshotCache, log logger.Logger,
 	}
 }
 
-func (d Discovery) Watch(updateChannel chan discovery.Reason) {
+func (d *Discovery) Watch(updateChannel chan discovery.Reason) {
 	for {
 		reason := <-updateChannel
 		if err := d.discoverSwarm(reason); err != nil {
@@ -38,7 +38,7 @@ func (d Discovery) Watch(updateChannel chan discovery.Reason) {
 	}
 }
 
-func (d Discovery) discoverSwarm(reason discovery.Reason) error {
+func (d *Discovery) discoverSwarm(reason discovery.Reason) error {
 	d.logger.WithFields(logger.Fields{"reason": reason}).Debugf("Running service discovery")
 
 	const discoveryTimeout = 5 * time.Second
@@ -47,22 +47,15 @@ func (d Discovery) discoverSwarm(reason discovery.Reason) error {
 
 	// endpoints and routes are embedded in the clusters and listeners. Other resources are not yet supported
 	var endpoints, routes, runtimes, listeners []types.Resource
-
-	clusters, httpListener, err := d.resourceProvider.ProvideClustersAndListener(ctx)
+	clusters, listeners, err := d.resourceProvider.Provide(ctx)
 	if err != nil {
 		return err
-	}
-
-	if d.tlsProvider != nil {
-		listeners = d.tlsProvider.UpgradeHttpListener(httpListener)
-	} else {
-		listeners = append(listeners, httpListener)
 	}
 
 	return d.createSnapshot(endpoints, clusters, routes, listeners, runtimes, err)
 }
 
-func (d Discovery) createSnapshot(endpoints []types.Resource, clusters []types.Resource, routes []types.Resource, listeners []types.Resource, runtimes []types.Resource, err error) error {
+func (d *Discovery) createSnapshot(endpoints, clusters, routes, listeners, runtimes []types.Resource, err error) error {
 	// todo this would be the point where we write it to all node ids?
 	currentTime := time.Now()
 	snapShot := cache.NewSnapshot(currentTime.Format(time.RFC3339), endpoints, clusters, routes, listeners, runtimes)
@@ -79,5 +72,5 @@ func (d Discovery) createSnapshot(endpoints []types.Resource, clusters []types.R
 		"runtime-count":  len(runtimes),
 	}).Debugf("Updated snapshot")
 
-	return nil
+	return err
 }

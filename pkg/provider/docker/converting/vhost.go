@@ -4,21 +4,16 @@ import (
 	"errors"
 	"fmt"
 
-	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
-	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
-	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
-	"github.com/golang/protobuf/ptypes"
 )
 
 type VhostCollection struct {
-	vhosts map[string]*route.VirtualHost
+	Vhosts map[string]*route.VirtualHost
 }
 
 func NewVhostCollection() *VhostCollection {
 	return &VhostCollection{
-		vhosts: make(map[string]*route.VirtualHost),
+		Vhosts: make(map[string]*route.VirtualHost),
 	}
 }
 
@@ -30,7 +25,7 @@ func (w VhostCollection) AddRoute(clusterIdentifier string, labels *ServiceLabel
 		}
 	}
 
-	virtualHost, exist := w.vhosts[primaryDomain]
+	virtualHost, exist := w.Vhosts[primaryDomain]
 	if !exist {
 		virtualHost = &route.VirtualHost{
 			Name:    primaryDomain,
@@ -61,39 +56,9 @@ func (w VhostCollection) AddRoute(clusterIdentifier string, labels *ServiceLabel
 	}
 
 	virtualHost.Routes = append(virtualHost.Routes, newRoute)
-	w.vhosts[primaryDomain] = virtualHost
+	w.Vhosts[primaryDomain] = virtualHost
 
 	return nil
-}
-
-func (w VhostCollection) BuildListener() *listener.Listener {
-	mngr, err := ptypes.MarshalAny(w.buildConnectionManger())
-	if err != nil {
-		panic(err)
-	}
-
-	return &listener.Listener{
-		Name: "http_listener",
-		Address: &core.Address{
-			Address: &core.Address_SocketAddress{
-				SocketAddress: &core.SocketAddress{
-					Protocol: core.SocketAddress_TCP,
-					Address:  "0.0.0.0", // Default to all addresses since we don't know where our proxies are running
-					PortSpecifier: &core.SocketAddress_PortValue{
-						PortValue: 80, // todo
-					},
-				},
-			},
-		},
-		FilterChains: []*listener.FilterChain{{
-			Filters: []*listener.Filter{{
-				Name: wellknown.HTTPConnectionManager,
-				ConfigType: &listener.Filter_TypedConfig{
-					TypedConfig: mngr,
-				},
-			}},
-		}},
-	}
 }
 
 func (w VhostCollection) validateExtraDomain(domain string) error {
@@ -101,27 +66,9 @@ func (w VhostCollection) validateExtraDomain(domain string) error {
 		return errors.New("wildcard cannot be used in an extra domain")
 	}
 
-	if w.vhosts[domain] != nil {
+	if w.Vhosts[domain] != nil {
 		return fmt.Errorf("domain %s is already used as a primary domain in another vhost", domain)
 	}
 
 	return nil
-}
-
-func (w VhostCollection) buildRouteConfig() *route.RouteConfiguration {
-	r := &route.RouteConfiguration{Name: "swarm_routes"}
-	for _, host := range w.vhosts {
-		r.VirtualHosts = append(r.VirtualHosts, host)
-	}
-
-	return r
-}
-
-func (w VhostCollection) buildConnectionManger() *hcm.HttpConnectionManager {
-	return &hcm.HttpConnectionManager{
-		CodecType:      hcm.HttpConnectionManager_AUTO,
-		StatPrefix:     "http",
-		RouteSpecifier: &hcm.HttpConnectionManager_RouteConfig{RouteConfig: w.buildRouteConfig()},
-		HttpFilters:    []*hcm.HttpFilter{{Name: "envoy.filters.http.router"}},
-	}
 }

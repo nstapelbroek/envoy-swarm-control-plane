@@ -3,13 +3,16 @@ package provider
 import (
 	"context"
 
+	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 )
 
 type Resource interface {
-	ProvideClustersAndListener(ctx context.Context) (clusters []types.Resource, listeners types.Resource, err error)
+	Provide(ctx context.Context) (clusters, listeners []types.Resource, err error)
 }
 
 type TLS interface {
-	UpgradeHttpListener(listener types.Resource) []types.Resource
+	HasCertificate(vhost route.VirtualHost) bool
+	GetCertificate(vhost route.VirtualHost) interface{}
+	IssueCertificate(vhost route.VirtualHost) interface{}
 }
