@@ -72,3 +72,25 @@ func (w VhostCollection) validateExtraDomain(domain string) error {
 
 	return nil
 }
+
+func CreateRedirectVhost(originalVhost *route.VirtualHost) *route.VirtualHost {
+	return &route.VirtualHost{
+		Name:    originalVhost.Name,
+		Domains: originalVhost.Domains,
+		Routes: []*route.Route{{
+			Name: "https_redirect",
+			Match: &route.RouteMatch{
+				PathSpecifier: &route.RouteMatch_Prefix{
+					Prefix: "/",
+				},
+			},
+			Action: &route.Route_Redirect{
+				Redirect: &route.RedirectAction{
+					SchemeRewriteSpecifier: &route.RedirectAction_HttpsRedirect{
+						HttpsRedirect: true,
+					},
+				},
+			},
+		}},
+	}
+}

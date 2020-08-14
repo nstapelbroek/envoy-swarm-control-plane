@@ -54,13 +54,13 @@ func (s SwarmProvider) Provide(ctx context.Context) (clusters, listeners []types
 		return nil, nil, err
 	}
 
-	if s.tlsProvider == nil {
-		listeners = append(listeners, mapVhostsToHTTPListener(vhosts))
-		return clusters, listeners, nil
-	}
+	//if s.tlsProvider == nil {
+	//	listeners = append(listeners, mapVhostsToHTTPListener(vhosts))
+	//	return clusters, listeners, nil
+	//}
 
-	// listeners = converting.MapVhostsToHttpsListener(vhosts, s.tlsProvider)
-	// go s.issueMissingCertificates(vhosts)
+	listeners = mapVhostsToHttpsListeners(vhosts, s.tlsProvider)
+	//go s.issueMissingCertificates(vhosts)
 
 	return clusters, listeners, nil
 }
