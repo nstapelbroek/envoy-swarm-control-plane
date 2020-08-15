@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"errors"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider"
 
 	swarmtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
@@ -11,17 +12,16 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/docker/converting"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls"
 )
 
 type SwarmProvider struct {
-	dockerClient   client.APIClient
-	tlsProvider    *tls.Provider
 	ingressNetwork string // the network name/id where our envoy communicates with services
+	dockerClient   client.APIClient
+	sdsProvider    provider.SDS
 	logger         logger.Logger
 }
 
-func NewSwarmProvider(ingressNetwork string, log logger.Logger) SwarmProvider {
+func NewSwarmProvider(ingressNetwork string, sdsProvider provider.SDS, log logger.Logger) SwarmProvider {
 	httpHeaders := map[string]string{
 		"User-Agent": "Envoy Swarm Control Plane",
 	}
@@ -36,6 +36,7 @@ func NewSwarmProvider(ingressNetwork string, log logger.Logger) SwarmProvider {
 
 	return SwarmProvider{
 		dockerClient:   c,
+		sdsProvider:    sdsProvider,
 		ingressNetwork: ingressNetwork,
 		logger:         log,
 	}
@@ -54,13 +55,12 @@ func (s SwarmProvider) Provide(ctx context.Context) (clusters, listeners []types
 		return nil, nil, err
 	}
 
-	//if s.tlsProvider == nil {
-	//	listeners = append(listeners, mapVhostsToHTTPListener(vhosts))
-	//	return clusters, listeners, nil
-	//}
+	if s.sdsProvider == nil {
+		listeners = append(listeners, mapVhostsToHTTPListener(vhosts))
+		return clusters, listeners, nil
+	}
 
-	listeners = mapVhostsToHttpsListeners(vhosts, s.tlsProvider)
-	//go s.issueMissingCertificates(vhosts)
+	listeners = mapVhostsToHttpsListeners(vhosts, s.sdsProvider)
 
 	return clusters, listeners, nil
 }

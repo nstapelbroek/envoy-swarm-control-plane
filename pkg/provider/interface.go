@@ -7,12 +7,11 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 )
 
-type Resource interface {
+type XDS interface {
 	Provide(ctx context.Context) (clusters, listeners []types.Resource, err error)
 }
 
-type TLS interface {
-	HasCertificate(vhost route.VirtualHost) bool
-	GetCertificate(vhost route.VirtualHost) interface{}
-	IssueCertificate(vhost route.VirtualHost) interface{}
+type SDS interface {
+	Provide(ctx context.Context) (secrets []types.Resource, err error)
+	GetCertificateConfigKey(vhost *route.VirtualHost) string
 }

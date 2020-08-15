@@ -92,8 +92,8 @@ func (b *FilterChainBuilder) buildDownstreamTransportSocket() *core.TransportSoc
 	c := &auth.DownstreamTlsContext{
 		CommonTlsContext: &auth.CommonTlsContext{
 			TlsCertificateSdsSecretConfigs: []*auth.SdsSecretConfig{{
-				Name: b.sdsCertificateKey,
-				//SdsConfig: configSource(ts.Xds), I hope i don't need this
+				Name:      b.sdsCertificateKey,
+				SdsConfig: henk(),
 			}},
 		},
 	}
@@ -103,6 +103,23 @@ func (b *FilterChainBuilder) buildDownstreamTransportSocket() *core.TransportSoc
 		Name: "envoy.transport_sockets.tls",
 		ConfigType: &core.TransportSocket_TypedConfig{
 			TypedConfig: tlsc,
+		},
+	}
+}
+
+func henk() *core.ConfigSource {
+	return &core.ConfigSource{
+		ResourceApiVersion: core.ApiVersion_V3,
+		ConfigSourceSpecifier: &core.ConfigSource_ApiConfigSource{
+			ApiConfigSource: &core.ApiConfigSource{
+				ApiType:             core.ApiConfigSource_GRPC,
+				TransportApiVersion: core.ApiVersion_V3,
+				GrpcServices: []*core.GrpcService{{
+					TargetSpecifier: &core.GrpcService_EnvoyGrpc_{
+						EnvoyGrpc: &core.GrpcService_EnvoyGrpc{ClusterName: "control_plane"},
+					},
+				}},
+			},
 		},
 	}
 }

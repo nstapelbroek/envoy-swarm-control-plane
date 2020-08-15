@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls"
 	"os"
 	"os/signal"
 	"syscall"
@@ -18,19 +19,17 @@ import (
 )
 
 var (
-	debug          bool
-	port           uint
-	pollInterval   uint
-	nodeID         string
-	ingressNetwork string
+	debug            bool
+	port             uint
+	ingressNetwork   string
+	letsEncryptEmail string
 )
 
 func init() {
 	flag.BoolVar(&debug, "debug", false, "Use debug logging")
 	flag.UintVar(&port, "port", 9876, "Management server port")
-	flag.UintVar(&pollInterval, "interval", 15, "Poll interval")
-	flag.StringVar(&nodeID, "nodeID", "test-id", "Node ID")
-	flag.StringVar(&ingressNetwork, "ingress-network", "", "The network name or ID which connects services to the loadbalancer")
+	flag.StringVar(&ingressNetwork, "ingress-network", "", "The swarm network name or ID that all services share with the envoy instances")
+	flag.StringVar(&letsEncryptEmail, "lets-encrypt-email", "", "Enable letsEncrypt TLS  certificate issuing by providing a expiration notice email")
 }
 
 func main() {
@@ -50,20 +49,26 @@ func main() {
 	// Internals to produce new snapshots
 	UpdateEvents := make(chan discovery.Reason)
 
-	provider := docker.NewSwarmProvider(
+	leProvider := tls.NewLetsEncryptProvider(
+		letsEncryptEmail,
+		internalLogger.Instance().WithFields(logger.Fields{"area": "letsencrypt-provider"}),
+	)
+
+	swarmProvider := docker.NewSwarmProvider(
 		ingressNetwork,
-		internalLogger.Instance().WithFields(logger.Fields{"area": "provider"}),
+		leProvider,
+		internalLogger.Instance().WithFields(logger.Fields{"area": "swarm-provider"}),
 	)
 
 	consumer := internal.NewDiscovery(
-		provider,
+		swarmProvider,
+		leProvider,
 		snapshotCache,
 		internalLogger.Instance().WithFields(logger.Fields{"area": "discovery"}),
-		nodeID,
 	)
 
 	sp := producer.NewSwarmEventProducer(
-		provider,
+		swarmProvider,
 		internalLogger.Instance().WithFields(logger.Fields{"area": "swarm-events"}),
 	)
 

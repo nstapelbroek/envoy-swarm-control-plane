@@ -12,20 +12,18 @@ import (
 )
 
 type Discovery struct {
-	resourceProvider provider.Resource
-	tlsProvider      provider.TLS
-	snapshotCache    cache.SnapshotCache
-	logger           logger.Logger
-	nodeID           string
+	xdsProvider   provider.XDS
+	sdsProvider   provider.SDS
+	snapshotCache cache.SnapshotCache
+	logger        logger.Logger
 }
 
-func NewDiscovery(p provider.Resource, c cache.SnapshotCache, log logger.Logger, nodeID string) *Discovery {
+func NewDiscovery(xds provider.XDS, sds provider.SDS, c cache.SnapshotCache, log logger.Logger) *Discovery {
 	return &Discovery{
-		resourceProvider: p,
-		tlsProvider:      nil,
-		snapshotCache:    c,
-		logger:           log,
-		nodeID:           nodeID,
+		xdsProvider:   xds,
+		sdsProvider:   sds,
+		snapshotCache: c,
+		logger:        log,
 	}
 }
 
@@ -45,32 +43,33 @@ func (d *Discovery) discoverSwarm(reason discovery.Reason) error {
 	ctx, cancel := context.WithTimeout(context.Background(), discoveryTimeout)
 	defer cancel()
 
-	// endpoints and routes are embedded in the clusters and listeners. Other resources are not yet supported
-	var endpoints, routes, runtimes, listeners []types.Resource
-	clusters, listeners, err := d.resourceProvider.Provide(ctx)
+	clusters, listeners, err := d.xdsProvider.Provide(ctx)
 	if err != nil {
 		return err
 	}
 
-	return d.createSnapshot(endpoints, clusters, routes, listeners, runtimes, err)
+	secrets, err := d.sdsProvider.Provide(ctx)
+	if err != nil {
+		return err
+	}
+
+	return d.createSnapshot(clusters, listeners, secrets)
 }
 
-func (d *Discovery) createSnapshot(endpoints, clusters, routes, listeners, runtimes []types.Resource, err error) error {
+func (d *Discovery) createSnapshot(clusters, listeners, secrets []types.Resource) error {
+	snapshot := cache.Snapshot{}
+	version := time.Now().Format(time.RFC3339)
+	snapshot.Resources[types.Listener] = cache.NewResources(version, listeners)
+	snapshot.Resources[types.Cluster] = cache.NewResources(version, clusters)
+	snapshot.Resources[types.Secret] = cache.NewResources(version, secrets)
+
 	// todo this would be the point where we write it to all node ids?
-	currentTime := time.Now()
-	snapShot := cache.NewSnapshot(currentTime.Format(time.RFC3339), endpoints, clusters, routes, listeners, runtimes)
-	err = d.snapshotCache.SetSnapshot(d.nodeID, snapShot)
+	err := d.snapshotCache.SetSnapshot("test-id", snapshot)
 	if err != nil {
 		return err
 	}
 
-	d.logger.WithFields(logger.Fields{
-		"endpoint-count": len(endpoints),
-		"cluster-count":  len(clusters),
-		"route-count":    len(routes),
-		"listener-count": len(listeners),
-		"runtime-count":  len(runtimes),
-	}).Debugf("Updated snapshot")
+	d.logger.WithFields(logger.Fields{"cluster-count": len(clusters), "listener-count": len(listeners), "secrets-count": len(secrets)}).Debugf("Updated snapshot")
 
 	return err
 }

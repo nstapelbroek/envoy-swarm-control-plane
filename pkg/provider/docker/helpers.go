@@ -4,8 +4,8 @@ import (
 	swarmtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/docker/converting"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls"
 )
 
 func inIngressNetwork(service *swarm.Service, ingress *swarmtypes.NetworkResource) bool {
@@ -27,15 +27,16 @@ func mapVhostsToHTTPListener(collection *converting.VhostCollection) types.Resou
 	return converting.NewListenerBuilder("http_listener").AddFilterChain(filter).Build()
 }
 
-func mapVhostsToHttpsListeners(collection *converting.VhostCollection, tlsProvider *tls.Provider) []types.Resource {
+func mapVhostsToHttpsListeners(collection *converting.VhostCollection, tlsProvider provider.SDS) []types.Resource {
 	httpsListener := converting.NewListenerBuilder("https_listener").EnableTLS()
 	redirects := converting.NewFilterChainBuilder("http_redirects")
 	for i := range collection.Vhosts {
 		vhost := collection.Vhosts[i]
 
+		configKey := tlsProvider.GetCertificateConfigKey(vhost)
 		redirects.ForVhost(converting.CreateRedirectVhost(vhost))
 		httpsListener.AddFilterChain(
-			converting.NewFilterChainBuilder(vhost.Name).EnableTLS(vhost.Domains, " snake_oil"),
+			converting.NewFilterChainBuilder(vhost.Name).EnableTLS(vhost.Domains, configKey),
 		)
 	}
 

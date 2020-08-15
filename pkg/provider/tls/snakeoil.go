@@ -1,7 +1,9 @@
 package tls
 
 const (
-	key = `-----BEGIN PRIVATE KEY-----
+	snakeOilConfigKey = "tls_snake_oil"
+
+	snakeOilPrivateKey = `-----BEGIN PRIVATE KEY-----
 MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDhJatwAuY0yXw6
 2FJk0+l226w89pm5HBXtTTrcyylDqV28eR+gojqWFT1A9lgL4ltUnOiAN1jOzd3S
 ZIId50bBb03yJf+/++Bwi6JjoTWLoljCGltna8eiU2zuZZITWb6eaibQtTtqtXgX
@@ -30,7 +32,7 @@ davve0ruCUwRuosQjnHATWn5JIvf1UPVlBDe0L9PtZseLdCESXea2XhFbOEnQumV
 AlCjmWiQufkug74himDE0Hp5
 -----END PRIVATE KEY-----`
 
-	cert = `-----BEGIN CERTIFICATE-----
+	snakeOilCertificate = `-----BEGIN CERTIFICATE-----
 MIIDDDCCAfQCCQCyHc3LsbSd2TANBgkqhkiG9w0BAQsFADBIMRQwEgYDVQQDDAtl
 eGFtcGxlLmNvbTEjMCEGA1UECgwaRW52b3kgU3dhcm0gQ29udHJvbCBQbGFuZS4x
 CzAJBgNVBAYTAlVTMB4XDTIwMDczMTE2MjU1N1oXDTIxMDczMTE2MjU1N1owSDEU
