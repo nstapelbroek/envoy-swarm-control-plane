@@ -24,8 +24,6 @@ func NewLetsEncryptProvider(registrationEmail string, log logger.Logger) *LetsEn
 }
 
 func (p *LetsEncryptProvider) Provide(ctx context.Context) (secrets []types.Resource, err error) {
-	return secrets, nil
-
 	return []types.Resource{
 		&auth.Secret{
 			Name: snakeOilConfigKey,
