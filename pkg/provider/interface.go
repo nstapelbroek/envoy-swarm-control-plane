@@ -7,7 +7,7 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 )
 
-type XDS interface {
+type ADS interface {
 	Provide(ctx context.Context) (clusters, listeners []types.Resource, err error)
 }
 

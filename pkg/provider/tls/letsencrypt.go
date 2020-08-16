@@ -2,6 +2,7 @@ package tls
 
 import (
 	"context"
+
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	auth "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
@@ -30,10 +31,20 @@ func (p *LetsEncryptProvider) Provide(ctx context.Context) (secrets []types.Reso
 			Type: &auth.Secret_TlsCertificate{
 				TlsCertificate: &auth.TlsCertificate{
 					PrivateKey: &core.DataSource{
-						Specifier: &core.DataSource_InlineBytes{InlineBytes: []byte(snakeOilPrivateKey)},
+						Specifier: &core.DataSource_InlineBytes{InlineBytes: []byte(privateKey)},
 					},
 					CertificateChain: &core.DataSource{
-						Specifier: &core.DataSource_InlineBytes{InlineBytes: []byte(snakeOilCertificate)},
+						Specifier: &core.DataSource_InlineBytes{InlineBytes: []byte(privateChain)},
+					},
+				},
+			},
+		},
+		&auth.Secret{
+			Name: "neen",
+			Type: &auth.Secret_ValidationContext{
+				ValidationContext: &auth.CertificateValidationContext{
+					TrustedCa: &core.DataSource{
+						Specifier: &core.DataSource_InlineBytes{InlineBytes: []byte(rootCert)},
 					},
 				},
 			},

@@ -23,8 +23,8 @@ const (
 	grpcMaxConcurrentStreams = 1000000
 )
 
-// RunGRPCServer starts an xDS streaming at the given port.
-func RunGRPCServer(ctx context.Context, snapshotCache cache.Cache, port uint) {
+// RunXDSServer starts an xDS streaming at the given port.
+func RunXDSServer(ctx context.Context, snapshotCache cache.Cache, port uint) {
 	// gRPC golang library sets a very small upper bound for the number gRPC/h2
 	// streams over a single TCP connection. If a proxy multiplexes requests over
 	// a single connection to the management streaming, then it might lead to

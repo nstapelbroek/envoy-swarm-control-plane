@@ -95,6 +95,12 @@ func (b *FilterChainBuilder) buildDownstreamTransportSocket() *core.TransportSoc
 				Name:      b.sdsCertificateKey,
 				SdsConfig: henk(),
 			}},
+			//ValidationContextType: &auth.CommonTlsContext_ValidationContextSdsSecretConfig{
+			//	ValidationContextSdsSecretConfig: &auth.SdsSecretConfig{
+			//		Name:      "neen",
+			//		SdsConfig: henk(),
+			//	},
+			//},
 		},
 	}
 	tlsc, _ := ptypes.MarshalAny(c)

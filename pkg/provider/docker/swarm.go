@@ -3,12 +3,12 @@ package docker
 import (
 	"context"
 	"errors"
+
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/client"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider"
 
 	swarmtypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/client"
+	docker "github.com/docker/docker/client"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/docker/converting"
@@ -16,40 +16,22 @@ import (
 
 type SwarmProvider struct {
 	ingressNetwork string // the network name/id where our envoy communicates with services
-	dockerClient   client.APIClient
+	dockerClient   docker.APIClient
 	sdsProvider    provider.SDS
 	logger         logger.Logger
 }
 
-func NewSwarmProvider(ingressNetwork string, sdsProvider provider.SDS, log logger.Logger) SwarmProvider {
-	httpHeaders := map[string]string{
-		"User-Agent": "Envoy Swarm Control Plane",
-	}
-
-	c, err := client.NewClientWithOpts(
-		client.FromEnv,
-		client.WithHTTPHeaders(httpHeaders),
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	return SwarmProvider{
-		dockerClient:   c,
+func NewSwarmProvider(ingressNetwork string, sdsProvider provider.SDS, log logger.Logger) *SwarmProvider {
+	return &SwarmProvider{
+		dockerClient:   client.NewDockerClient(),
 		sdsProvider:    sdsProvider,
 		ingressNetwork: ingressNetwork,
 		logger:         log,
 	}
 }
 
-func (s SwarmProvider) Events(ctx context.Context) (<-chan events.Message, <-chan error) {
-	return s.dockerClient.Events(ctx, swarmtypes.EventsOptions{
-		Filters: filters.NewArgs(filters.KeyValuePair{Key: "type", Value: "service"}),
-	})
-}
-
 // ProvideClustersAndListener will break down swarm service definitions into clusters and listeners internally those are composed of endpoints routes etc.
-func (s SwarmProvider) Provide(ctx context.Context) (clusters, listeners []types.Resource, err error) {
+func (s *SwarmProvider) Provide(ctx context.Context) (clusters, listeners []types.Resource, err error) {
 	clusters, vhosts, err := s.provideClustersAndVhosts(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -65,7 +47,7 @@ func (s SwarmProvider) Provide(ctx context.Context) (clusters, listeners []types
 	return clusters, listeners, nil
 }
 
-func (s SwarmProvider) provideClustersAndVhosts(ctx context.Context) (clusters []types.Resource, vhosts *converting.VhostCollection, err error) {
+func (s *SwarmProvider) provideClustersAndVhosts(ctx context.Context) (clusters []types.Resource, vhosts *converting.VhostCollection, err error) {
 	// Make sure we have up-to-date info about our ingress network
 	ingress, err := s.getIngressNetwork(ctx)
 	if err != nil {
@@ -114,7 +96,7 @@ func (s SwarmProvider) provideClustersAndVhosts(ctx context.Context) (clusters [
 	return clusters, vhosts, nil
 }
 
-func (s SwarmProvider) getIngressNetwork(ctx context.Context) (network swarmtypes.NetworkResource, err error) {
+func (s *SwarmProvider) getIngressNetwork(ctx context.Context) (network swarmtypes.NetworkResource, err error) {
 	network, err = s.dockerClient.NetworkInspect(ctx, s.ingressNetwork, swarmtypes.NetworkInspectOptions{})
 	if err != nil {
 		return

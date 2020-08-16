@@ -29,14 +29,14 @@ func mapVhostsToHTTPListener(collection *converting.VhostCollection) types.Resou
 
 func mapVhostsToHttpsListeners(collection *converting.VhostCollection, tlsProvider provider.SDS) []types.Resource {
 	httpsListener := converting.NewListenerBuilder("https_listener").EnableTLS()
-	redirects := converting.NewFilterChainBuilder("http_redirects")
+	redirects := converting.NewFilterChainBuilder("redirects")
 	for i := range collection.Vhosts {
 		vhost := collection.Vhosts[i]
 
 		configKey := tlsProvider.GetCertificateConfigKey(vhost)
 		redirects.ForVhost(converting.CreateRedirectVhost(vhost))
 		httpsListener.AddFilterChain(
-			converting.NewFilterChainBuilder(vhost.Name).EnableTLS(vhost.Domains, configKey),
+			converting.NewFilterChainBuilder(vhost.Name).EnableTLS(vhost.Domains, configKey).ForVhost(vhost),
 		)
 	}
 

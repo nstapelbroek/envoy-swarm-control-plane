@@ -3,17 +3,18 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/discovery"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/internal"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/producer"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/snapshot"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/watcher"
 
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/internal"
 	internalLogger "github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/docker"
 )
@@ -37,46 +38,52 @@ func main() {
 	internalLogger.BootLogger(debug)
 	main := context.Background()
 
-	// serving snapshots to our proxies
-	snapshotCache := cache.NewSnapshotCache(
+	snapshotStorage := cache.NewSnapshotCache(
 		false,
 		cache.IDHash{},
 		internalLogger.Instance().WithFields(logger.Fields{"area": "snapshot-cache"}),
 	)
 
-	go internal.RunGRPCServer(main, snapshotCache, port)
-
-	// Internals to produce new snapshots
-	UpdateEvents := make(chan discovery.Reason)
-
-	leProvider := tls.NewLetsEncryptProvider(
-		letsEncryptEmail,
-		internalLogger.Instance().WithFields(logger.Fields{"area": "letsencrypt-provider"}),
+	snsProvider := createSnsProvider()            // sns provider manages downstream TLS certificates
+	adsProvider := createAdsProvider(snsProvider) // ads provider converts swarm services to clusters and listeners
+	manager := snapshot.NewManager(
+		adsProvider,
+		snsProvider,
+		snapshotStorage,
+		internalLogger.Instance().WithFields(logger.Fields{"area": "snapshot-manager"}),
 	)
 
-	swarmProvider := docker.NewSwarmProvider(
-		ingressNetwork,
-		leProvider,
-		internalLogger.Instance().WithFields(logger.Fields{"area": "swarm-provider"}),
-	)
-
-	consumer := internal.NewDiscovery(
-		swarmProvider,
-		leProvider,
-		snapshotCache,
-		internalLogger.Instance().WithFields(logger.Fields{"area": "discovery"}),
-	)
-
-	sp := producer.NewSwarmEventProducer(
-		swarmProvider,
-		internalLogger.Instance().WithFields(logger.Fields{"area": "swarm-events"}),
-	)
-
-	go consumer.Watch(UpdateEvents)
-	go sp.UpdateOnSwarmEvents(main, UpdateEvents)
-	go producer.InitialStartup(UpdateEvents)
+	events := createEventProducers(main)
+	go manager.Listen(events)
+	go internal.RunXDSServer(main, snapshotStorage, port)
 
 	waitForSignal(main)
+}
+
+// createEventProducers will create a single place where multiple async triggers can coordinate an update of our state
+func createEventProducers(main context.Context) chan snapshot.UpdateReason {
+	UpdateEvents := make(chan snapshot.UpdateReason)
+
+	go watcher.ForSwarmEvent(internalLogger.Instance().WithFields(logger.Fields{"area": "watcher"})).Watch(main, UpdateEvents)
+	//go watcher.ForCertificateExpiration(snsProvider,internalLogger.Instance().WithFields(logger.Fields{"area": "watcher"})).Watch(main, UpdateEvents)
+	go watcher.CreateInitialStartupEvent(UpdateEvents)
+
+	return UpdateEvents
+}
+
+func createAdsProvider(snsProvider provider.SDS) provider.ADS {
+	return docker.NewSwarmProvider(
+		ingressNetwork,
+		snsProvider,
+		internalLogger.Instance().WithFields(logger.Fields{"area": "ads-provider"}),
+	)
+}
+
+func createSnsProvider() provider.SDS {
+	return tls.NewLetsEncryptProvider(
+		letsEncryptEmail,
+		internalLogger.Instance().WithFields(logger.Fields{"area": "sns-provider"}),
+	)
 }
 
 func waitForSignal(application context.Context) {

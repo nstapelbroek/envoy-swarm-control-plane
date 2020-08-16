@@ -1,4 +1,4 @@
-package internal
+package snapshot
 
 import (
 	"context"
@@ -6,44 +6,43 @@ import (
 
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/discovery"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider"
 )
 
-type Discovery struct {
-	xdsProvider   provider.XDS
+type Manager struct {
+	adsProvider   provider.ADS
 	sdsProvider   provider.SDS
 	snapshotCache cache.SnapshotCache
 	logger        logger.Logger
 }
 
-func NewDiscovery(xds provider.XDS, sds provider.SDS, c cache.SnapshotCache, log logger.Logger) *Discovery {
-	return &Discovery{
-		xdsProvider:   xds,
+func NewManager(ads provider.ADS, sds provider.SDS, c cache.SnapshotCache, log logger.Logger) *Manager {
+	return &Manager{
+		adsProvider:   ads,
 		sdsProvider:   sds,
 		snapshotCache: c,
 		logger:        log,
 	}
 }
 
-func (d *Discovery) Watch(updateChannel chan discovery.Reason) {
+func (d *Manager) Listen(updateChannel chan UpdateReason) {
 	for {
 		reason := <-updateChannel
-		if err := d.discoverSwarm(reason); err != nil {
+		if err := d.runDiscovery(reason); err != nil {
 			d.logger.Fatalf(err.Error()) // For now, we kill the application as I don't know in what cases we could recover
 		}
 	}
 }
 
-func (d *Discovery) discoverSwarm(reason discovery.Reason) error {
-	d.logger.WithFields(logger.Fields{"reason": reason}).Debugf("Running service discovery")
+func (d *Manager) runDiscovery(reason UpdateReason) error {
+	d.logger.WithFields(logger.Fields{"reason": reason}).Debugf("Running service snapshot")
 
 	const discoveryTimeout = 5 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), discoveryTimeout)
 	defer cancel()
 
-	clusters, listeners, err := d.xdsProvider.Provide(ctx)
+	clusters, listeners, err := d.adsProvider.Provide(ctx)
 	if err != nil {
 		return err
 	}
@@ -56,7 +55,7 @@ func (d *Discovery) discoverSwarm(reason discovery.Reason) error {
 	return d.createSnapshot(clusters, listeners, secrets)
 }
 
-func (d *Discovery) createSnapshot(clusters, listeners, secrets []types.Resource) error {
+func (d *Manager) createSnapshot(clusters, listeners, secrets []types.Resource) error {
 	snapshot := cache.Snapshot{}
 	version := time.Now().Format(time.RFC3339)
 	snapshot.Resources[types.Listener] = cache.NewResources(version, listeners)
