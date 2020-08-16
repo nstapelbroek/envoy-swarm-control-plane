@@ -39,7 +39,7 @@ func main() {
 
 	// serving snapshots to our proxies
 	snapshotCache := cache.NewSnapshotCache(
-		true,
+		false,
 		cache.IDHash{},
 		internalLogger.Instance().WithFields(logger.Fields{"area": "snapshot-cache"}),
 	)
