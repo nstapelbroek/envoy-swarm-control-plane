@@ -27,21 +27,30 @@ func mapVhostsToHTTPListener(collection *converting.VhostCollection) types.Resou
 	return converting.NewListenerBuilder("http_listener").AddFilterChain(filter).Build()
 }
 
-func mapVhostsToHttpsListeners(collection *converting.VhostCollection, tlsProvider provider.SDS) []types.Resource {
+func mapVhostsToHttpsListeners(collection *converting.VhostCollection, sdsProvider provider.SDS) []types.Resource {
+	httpListener := converting.NewListenerBuilder("http_listener")
 	httpsListener := converting.NewListenerBuilder("https_listener").EnableTLS()
-	redirects := converting.NewFilterChainBuilder("redirects")
+	httpFilter := converting.NewFilterChainBuilder("httpFilter")
+
 	for i := range collection.Vhosts {
 		vhost := collection.Vhosts[i]
 
-		configKey := tlsProvider.GetCertificateConfigKey(vhost)
-		redirects.ForVhost(converting.CreateRedirectVhost(vhost))
+		// if there is no certificate, serve using http
+		if !sdsProvider.HasCertificate(vhost) {
+			httpFilter.ForVhost(vhost)
+			continue
+		}
+
+		httpFilter.ForVhost(converting.CreateRedirectVhost(vhost))
 		httpsListener.AddFilterChain(
-			converting.NewFilterChainBuilder(vhost.Name).EnableTLS(vhost.Domains, configKey).ForVhost(vhost),
+			converting.NewFilterChainBuilder(vhost.Name).
+				EnableTLS(vhost.Domains, sdsProvider.GetCertificateConfig(vhost)).
+				ForVhost(vhost),
 		)
 	}
 
 	return []types.Resource{
-		converting.NewListenerBuilder("http_listener").AddFilterChain(redirects).Build(),
+		httpListener.AddFilterChain(httpFilter).Build(),
 		httpsListener.Build(),
 	}
 }

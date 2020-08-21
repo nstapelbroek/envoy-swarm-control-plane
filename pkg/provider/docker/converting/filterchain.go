@@ -13,11 +13,11 @@ import (
 )
 
 type FilterChainBuilder struct {
-	name              string
-	configureTLS      bool
-	sniServerNames    []string
-	sdsCertificateKey string
-	vhosts            []*route.VirtualHost
+	name                 string
+	configureTLS         bool
+	sniServerNames       []string
+	sdsCertificateConfig *auth.SdsSecretConfig
+	vhosts               []*route.VirtualHost
 }
 
 func NewFilterChainBuilder(name string) *FilterChainBuilder {
@@ -28,10 +28,10 @@ func NewFilterChainBuilder(name string) *FilterChainBuilder {
 	}
 }
 
-func (b *FilterChainBuilder) EnableTLS(serverNames []string, certificateKey string) *FilterChainBuilder {
+func (b *FilterChainBuilder) EnableTLS(serverNames []string, sdsConfig *auth.SdsSecretConfig) *FilterChainBuilder {
 	b.configureTLS = true
 	b.sniServerNames = serverNames
-	b.sdsCertificateKey = certificateKey
+	b.sdsCertificateConfig = sdsConfig
 
 	return b
 }
@@ -91,16 +91,7 @@ func (b *FilterChainBuilder) buildHTTPFilterForVhosts() *listener.Filter {
 func (b *FilterChainBuilder) buildDownstreamTransportSocket() *core.TransportSocket {
 	c := &auth.DownstreamTlsContext{
 		CommonTlsContext: &auth.CommonTlsContext{
-			TlsCertificateSdsSecretConfigs: []*auth.SdsSecretConfig{{
-				Name:      b.sdsCertificateKey,
-				SdsConfig: henk(),
-			}},
-			//ValidationContextType: &auth.CommonTlsContext_ValidationContextSdsSecretConfig{
-			//	ValidationContextSdsSecretConfig: &auth.SdsSecretConfig{
-			//		Name:      "neen",
-			//		SdsConfig: henk(),
-			//	},
-			//},
+			TlsCertificateSdsSecretConfigs: []*auth.SdsSecretConfig{b.sdsCertificateConfig},
 		},
 	}
 	tlsc, _ := ptypes.MarshalAny(c)
@@ -109,23 +100,6 @@ func (b *FilterChainBuilder) buildDownstreamTransportSocket() *core.TransportSoc
 		Name: "envoy.transport_sockets.tls",
 		ConfigType: &core.TransportSocket_TypedConfig{
 			TypedConfig: tlsc,
-		},
-	}
-}
-
-func henk() *core.ConfigSource {
-	return &core.ConfigSource{
-		ResourceApiVersion: core.ApiVersion_V3,
-		ConfigSourceSpecifier: &core.ConfigSource_ApiConfigSource{
-			ApiConfigSource: &core.ApiConfigSource{
-				ApiType:             core.ApiConfigSource_GRPC,
-				TransportApiVersion: core.ApiVersion_V3,
-				GrpcServices: []*core.GrpcService{{
-					TargetSpecifier: &core.GrpcService_EnvoyGrpc_{
-						EnvoyGrpc: &core.GrpcService_EnvoyGrpc{ClusterName: "control_plane"},
-					},
-				}},
-			},
 		},
 	}
 }

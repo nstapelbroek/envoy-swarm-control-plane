@@ -20,16 +20,18 @@ import (
 )
 
 var (
-	debug            bool
-	port             uint
-	ingressNetwork   string
-	letsEncryptEmail string
+	debug                   bool
+	port                    uint
+	ingressNetwork          string
+	controlPlaneClusterName string
+	letsEncryptEmail        string
 )
 
 func init() {
 	flag.BoolVar(&debug, "debug", false, "Use debug logging")
 	flag.UintVar(&port, "port", 9876, "Management server port")
 	flag.StringVar(&ingressNetwork, "ingress-network", "", "The swarm network name or ID that all services share with the envoy instances")
+	flag.StringVar(&controlPlaneClusterName, "control-plane-cluster-name", "control_plane", "Name of the cluster your envoy instances are contacting for ADS/SDS")
 	flag.StringVar(&letsEncryptEmail, "lets-encrypt-email", "", "Enable letsEncrypt TLS  certificate issuing by providing a expiration notice email")
 }
 
@@ -80,8 +82,8 @@ func createAdsProvider(snsProvider provider.SDS) provider.ADS {
 }
 
 func createSnsProvider() provider.SDS {
-	return tls.NewLetsEncryptProvider(
-		letsEncryptEmail,
+	return tls.NewCertificateSecretsProvider(
+		controlPlaneClusterName,
 		internalLogger.Instance().WithFields(logger.Fields{"area": "sns-provider"}),
 	)
 }
