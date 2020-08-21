@@ -1,3 +1,2 @@
 #! /bin/sh
-docker stack rm envoy myapi myfrontend
-docker network rm edge-traffic
+docker stack rm envoy || docker network rm edge-traffic

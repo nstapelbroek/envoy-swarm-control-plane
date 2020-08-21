@@ -1,0 +1,63 @@
+version: '3.7'
+services:
+  #  control-plane:
+  #    build:
+  #      context: .
+  #      dockerfile: Dockerfile
+  #      target: App
+
+  lb:
+    image: envoyproxy/envoy:v1.15-latest
+    command: [ "envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "debug" ]
+    environment:
+      - ENVOY_UID=0 # need this since we'll bind on port 80
+    ports:
+      - 19000:19000
+      - 443:443
+      - 80:80
+    volumes:
+      - ./envoy.yaml:/etc/envoy/envoy.yaml
+    networks:
+      - control-traffic
+      - edge-traffic
+
+  pebble:
+    image: letsencrypt/pebble
+    command: pebble -config /test/my-pebble-config.json
+    ports:
+      - 14000:14000  # ACME port
+      - 15000:15000  # Management port
+    environment:
+      - PEBBLE_VA_NOSLEEP=1
+    networks:
+      - acmenet
+
+  frontend:
+    image: nstapelbroek/static-webserver:3
+    deploy:
+      replicas: 2
+      labels:
+        - envoy.endpoint.protocol=tcp # default, other option: udp
+        - envoy.endpoint.port=80 # required, only one port per service atm though
+        - envoy.route.domain=nstapelbroek.com # required
+        - envoy.route.extra-domains=nstapelbroek.nl,www.nstapelbroek.nl,www.nstapelbroek.com # optional
+        - envoy.route.path=/ # default
+    networks:
+      - edge-traffic
+
+  api:
+    image: containous/whoami:latest
+    deploy:
+      replicas: 2
+      labels:
+        - envoy.endpoint.port=80
+        - envoy.route.domain=nstapelbroek.com
+        - envoy.route.path=/api
+    networks:
+      - edge-traffic
+
+networks:
+  control-traffic:
+  acmenet:
+  edge-traffic:
+    external: true
