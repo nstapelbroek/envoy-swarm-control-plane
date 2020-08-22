@@ -27,7 +27,7 @@ func mapVhostsToHTTPListener(collection *converting.VhostCollection) types.Resou
 	return converting.NewListenerBuilder("http_listener").AddFilterChain(filter).Build()
 }
 
-func mapVhostsToHttpsListeners(collection *converting.VhostCollection, sdsProvider provider.SDS) (listeners []types.Resource) {
+func mapVhostsToHTTPSListeners(collection *converting.VhostCollection, sdsProvider provider.SDS) (listeners []types.Resource) {
 	httpBuilder := converting.NewListenerBuilder("http_listener")
 	httpsBuilder := converting.NewListenerBuilder("https_listener").EnableTLS()
 	httpFilter := converting.NewFilterChainBuilder("httpFilter")

@@ -94,7 +94,7 @@ func createEventProducers(main context.Context) chan snapshot.UpdateReason {
 	UpdateEvents := make(chan snapshot.UpdateReason)
 
 	go watcher.ForSwarmEvent(internalLogger.Instance().WithFields(logger.Fields{"area": "watcher"})).Watch(main, UpdateEvents)
-	//go watcher.ForCertificateExpiration(snsProvider,internalLogger.Instance().WithFields(logger.Fields{"area": "watcher"})).Watch(main, UpdateEvents)
+	// go watcher.ForCertificateExpiration(snsProvider,internalLogger.Instance().WithFields(logger.Fields{"area": "watcher"})).Watch(main, UpdateEvents)
 	go watcher.CreateInitialStartupEvent(UpdateEvents)
 
 	return UpdateEvents
@@ -108,10 +108,10 @@ func createAdsProvider(snsProvider provider.SDS) provider.ADS {
 	)
 }
 
-func createSnsProvider(storage storage.CertificateStorage) provider.SDS {
+func createSnsProvider(certificateStorage storage.CertificateStorage) provider.SDS {
 	return tls.NewCertificateSecretsProvider(
 		controlPlaneClusterName,
-		storage,
+		certificateStorage,
 		internalLogger.Instance().WithFields(logger.Fields{"area": "sns-provider"}),
 	)
 }

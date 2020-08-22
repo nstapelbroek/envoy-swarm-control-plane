@@ -20,8 +20,8 @@ func (c *CertificateStorage) GetCertificate(domains []string) (publicChain, priv
 	privateKey, err = ioutil.ReadFile(c.directory + storage.GetPrivateKeyFilename(domains))
 	if err != nil {
 		return nil, nil, err
-
 	}
+
 	return publicChain, privateKey, err
 }
 

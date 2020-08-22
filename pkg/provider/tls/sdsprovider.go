@@ -20,15 +20,15 @@ type CertificateSecretsProvider struct {
 	logger                logger.Logger
 }
 
-func NewCertificateSecretsProvider(controlPlaneClusterName string, storage storage.CertificateStorage, log logger.Logger) *CertificateSecretsProvider {
+func NewCertificateSecretsProvider(controlPlaneClusterName string, certificateStorage storage.CertificateStorage, log logger.Logger) *CertificateSecretsProvider {
 	// we can re-use the config source for all secrets so we initialize it once :)
 	c := &core.ConfigSource{
 		ResourceApiVersion: core.ApiVersion_V3,
 
 		// somehow this is not supported
-		//ConfigSourceSpecifier: &core.ConfigSource_Self{
-		//	Self: &core.SelfConfigSource{TransportApiVersion: core.ApiVersion_V3},
-		//},
+		// ConfigSourceSpecifier: &core.ConfigSource_Self{
+		// 	 Self: &core.SelfConfigSource{TransportApiVersion: core.ApiVersion_V3},
+		// },
 		ConfigSourceSpecifier: &core.ConfigSource_ApiConfigSource{
 			ApiConfigSource: &core.ApiConfigSource{
 				ApiType:             core.ApiConfigSource_GRPC,
@@ -48,17 +48,14 @@ func NewCertificateSecretsProvider(controlPlaneClusterName string, storage stora
 		configSource:          c,
 		configKeyPrefix:       "downstream_tls_",
 		requestedCertificates: make(map[string]*route.VirtualHost),
-		storage:               storage,
+		storage:               certificateStorage,
 		logger:                log,
 	}
 }
 
 func (p *CertificateSecretsProvider) HasCertificate(vhost *route.VirtualHost) bool {
 	_, _, err := p.storage.GetCertificate(vhost.Domains)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 // GetCertificateConfig will register vhost in the SDS mapping, assuring that the secrets will be available

@@ -42,7 +42,7 @@ func (s *SwarmProvider) Provide(ctx context.Context) (clusters, listeners []type
 		return clusters, listeners, nil
 	}
 
-	listeners = mapVhostsToHttpsListeners(vhosts, s.sdsProvider)
+	listeners = mapVhostsToHTTPSListeners(vhosts, s.sdsProvider)
 
 	return clusters, listeners, nil
 }
