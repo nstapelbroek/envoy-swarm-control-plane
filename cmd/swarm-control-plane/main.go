@@ -7,6 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls/storage"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls/storage/disk"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls/storage/s3"
+
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider"
@@ -25,6 +29,10 @@ var (
 	ingressNetwork          string
 	controlPlaneClusterName string
 	letsEncryptEmail        string
+	storagePath             string
+	storageEndpoint         string
+	storageAccessKey        string
+	storageSecretKey        string
 )
 
 func init() {
@@ -32,7 +40,11 @@ func init() {
 	flag.UintVar(&port, "port", 9876, "Management server port")
 	flag.StringVar(&ingressNetwork, "ingress-network", "", "The swarm network name or ID that all services share with the envoy instances")
 	flag.StringVar(&controlPlaneClusterName, "control-plane-cluster-name", "control_plane", "Name of the cluster your envoy instances are contacting for ADS/SDS")
-	flag.StringVar(&letsEncryptEmail, "lets-encrypt-email", "", "Enable letsEncrypt TLS  certificate issuing by providing a expiration notice email")
+	flag.StringVar(&letsEncryptEmail, "lets-encrypt-email", "", "Enable letsEncrypt TLS certificate issuing by providing a expiration notice email")
+	flag.StringVar(&storageEndpoint, "storage-endpoint", "", "Host endpoint for the s3 certificate storage")
+	flag.StringVar(&storageAccessKey, "storage-access-key", "", "Access key to authenticate at the certificate storage")
+	flag.StringVar(&storageSecretKey, "storage-secret-key", "", "Secret key to authenticate at the certificate storage")
+	flag.StringVar(&storagePath, "storage-dir", "", "Local filesystem location where certificates are kept")
 }
 
 func main() {
@@ -46,8 +58,9 @@ func main() {
 		internalLogger.Instance().WithFields(logger.Fields{"area": "snapshot-cache"}),
 	)
 
-	snsProvider := createSnsProvider()            // sns provider manages downstream TLS certificates
-	adsProvider := createAdsProvider(snsProvider) // ads provider converts swarm services to clusters and listeners
+	certificateStorage := createCertificateStorage()
+	snsProvider := createSnsProvider(certificateStorage) // sns provider manages downstream TLS certificates
+	adsProvider := createAdsProvider(snsProvider)        // ads provider converts swarm services to clusters and listeners
 	manager := snapshot.NewManager(
 		adsProvider,
 		snsProvider,
@@ -60,6 +73,20 @@ func main() {
 	go internal.RunXDSServer(main, snapshotStorage, port)
 
 	waitForSignal(main)
+}
+
+func createCertificateStorage() storage.CertificateStorage {
+	// return early when no s3 credentials are set
+	if storageEndpoint == "" || storageAccessKey == "" || storageSecretKey == "" {
+		return disk.NewCertificateStorage(storagePath)
+	}
+
+	s, err := s3.NewCertificateStorage(storageEndpoint, storageAccessKey, storageSecretKey)
+	if err != nil {
+		internalLogger.Instance().Fatalf(err.Error())
+	}
+
+	return s
 }
 
 // createEventProducers will create a single place where multiple async triggers can coordinate an update of our state
@@ -81,9 +108,10 @@ func createAdsProvider(snsProvider provider.SDS) provider.ADS {
 	)
 }
 
-func createSnsProvider() provider.SDS {
+func createSnsProvider(storage storage.CertificateStorage) provider.SDS {
 	return tls.NewCertificateSecretsProvider(
 		controlPlaneClusterName,
+		storage,
 		internalLogger.Instance().WithFields(logger.Fields{"area": "sns-provider"}),
 	)
 }

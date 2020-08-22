@@ -11,16 +11,16 @@ import (
 const CertificateExtension = "crt"
 const PrivateKeyExtension = "key"
 
-func GetPublicCertificateFilename(domains []string) string {
-	return getFilenameHash(domains) + "." + CertificateExtension
+func GetCertificateChainFilename(domains []string) string {
+	return GetCertificateFilename(domains) + "." + CertificateExtension
 }
 
 func GetPrivateKeyFilename(domains []string) string {
-	return getFilenameHash(domains) + "." + PrivateKeyExtension
+	return GetCertificateFilename(domains) + "." + PrivateKeyExtension
 }
 
-// getFilenameHash will transform a long list of domains into a sha1 string
-func getFilenameHash(domains []string) string {
+// GetCertificateFilename will transform a long list of domains into a sha1 string
+func GetCertificateFilename(domains []string) string {
 	h := sha1.New()
 	sort.Strings(domains)
 
