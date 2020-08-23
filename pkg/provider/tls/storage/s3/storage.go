@@ -9,7 +9,7 @@ type CertificateStorage struct {
 	client *minio.Client
 }
 
-func (c *CertificateStorage) GetCertificate(domains []string) (publicChain, privateKey []byte, err error) {
+func (c *CertificateStorage) GetCertificate(domain string, sans []string) (publicChain, privateKey []byte, err error) {
 	panic("implement me")
 }
 

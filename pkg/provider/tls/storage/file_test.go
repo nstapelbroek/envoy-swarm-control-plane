@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"path/filepath"
+	"strings"
 	"testing"
 
 	"gotest.tools/assert"
@@ -10,19 +10,52 @@ import (
 func TestFileNameGeneratorIsIdempotent(t *testing.T) {
 	domains := []string{"something.com", "hello.co.uk", "www.hello.co.uk"}
 
-	firstRun := GetCertificateFilename(domains)
+	firstRun := GetCertificateFilename(domains[0], domains)
 
-	assert.Equal(t, firstRun, GetCertificateFilename(domains))
+	assert.Equal(t, firstRun, GetCertificateFilename(domains[0], domains))
 }
 
-func TestPublicCertificateFilenameExtension(t *testing.T) {
-	filename := GetCertificateChainFilename([]string{"domain.com"})
+func TestFileNameGeneratorContainsDomainName(t *testing.T) {
+	domains := []string{"awesome.co.uk", "www.awesome.co.uk", "oldwebsite.com"}
 
-	assert.Equal(t, filepath.Ext(filename), ".crt")
+	fileName := GetCertificateFilename(domains[0], domains)
+
+	assert.Equal(t, strings.HasPrefix(fileName, "awesome.co.uk"), true)
 }
 
-func TestPrivateKeyFilenameExtension(t *testing.T) {
-	filename := GetPrivateKeyFilename([]string{"domain.com"})
+func TestFileNameGeneratorIgnoresIllegalPathCharacters(t *testing.T) {
+	domains := []string{"/etc/passwd"}
+	domains2 := []string{"\\\\somehost\\directory"}
 
-	assert.Equal(t, filepath.Ext(filename), ".key")
+	fileName := GetCertificateFilename(domains[0], domains)
+	fileName2 := GetCertificateFilename(domains2[0], domains2)
+
+	assert.Check(t, !strings.Contains(fileName, "/"))
+	assert.Check(t, !strings.Contains(fileName, "\\"))
+	assert.Check(t, !strings.Contains(fileName2, "/"))
+	assert.Check(t, !strings.Contains(fileName2, "\\"))
+}
+
+func TestFileNameGeneratorContainsHash(t *testing.T) {
+	domains := []string{"awesome.co.uk", "www.awesome.co.uk", "oldwebsite.com"}
+
+	fileName := GetCertificateFilename(domains[0], domains)
+
+	assert.Equal(t, strings.HasSuffix(fileName, "z5ep8xrWar52XrUR"), true)
+}
+
+func TestFileNameGeneratorHashChangesWhenDomainsChange(t *testing.T) {
+	domains := []string{"something.com", "hello.co.uk", "www.hello.co.uk"}
+
+	firstRun := GetCertificateFilename(domains[0], domains)
+
+	assert.Check(t, firstRun != GetCertificateFilename(domains[0], []string{"hello.co.uk"}))
+}
+
+func TestFileNameGeneratorCanHandleArrayIndexShifts(t *testing.T) {
+	domains := []string{"something.com", "hello.co.uk", "www.hello.co.uk"}
+
+	firstRun := GetCertificateFilename("something.com", domains)
+
+	assert.Equal(t, firstRun, GetCertificateFilename("something.com", []string{"www.hello.co.uk", "hello.co.uk", "something.com"}))
 }

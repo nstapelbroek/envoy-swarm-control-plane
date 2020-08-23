@@ -1,33 +1,30 @@
 package storage
 
 import (
-	"crypto/sha1" // #nosec since I'm only using it generate a file name
-	"encoding/hex"
+	"crypto/sha256"
+	"encoding/base64"
+	"fmt"
 	"sort"
 	"strings"
 )
 
-// We'll use the PEM container format, try to keep constants here so i'll return to this opinionated place :)
-const CertificateExtension = "crt"
+// We'll use .pem and .key files to store our certificates, keeping it close to the RFCs 1421 through 1424
+const CertificateExtension = "pem"
 const PrivateKeyExtension = "key"
 
-func GetCertificateChainFilename(domains []string) string {
-	return GetCertificateFilename(domains) + "." + CertificateExtension
-}
+// GetCertificateFilename contains the business logic for generating consistent certificate file names
+func GetCertificateFilename(primaryDomain string, sans []string) string {
+	filename := strings.ToLower(primaryDomain)
 
-func GetPrivateKeyFilename(domains []string) string {
-	return GetCertificateFilename(domains) + "." + PrivateKeyExtension
-}
+	// Besides the human readable filename we need to add a hash
+	// that causes a mismatch when SANs are added or removed from the array
+	sortedDomains := make([]string, len(sans))
+	_ = copy(sortedDomains, sans)
+	sort.Strings(sortedDomains)
 
-// GetCertificateFilename will transform a long list of domains into a sha1 string
-func GetCertificateFilename(domains []string) string {
-	h := sha1.New() // #nosec
-	sort.Strings(domains)
+	sum := sha256.Sum256([]byte(strings.Join(sortedDomains, "")))
+	hash := base64.StdEncoding.EncodeToString(sum[:])
 
-	_, err := h.Write([]byte(strings.Join(domains, "")))
-	if err != nil {
-		panic(err)
-	}
-
-	return hex.EncodeToString(h.Sum(nil))
+	// The result should be unique enough to prevent a unintended collisions, 16 characters seems unique enough
+	return strings.NewReplacer("/", "", "\\", "").Replace(fmt.Sprintf("%s-%s", filename, hash[:16]))
 }

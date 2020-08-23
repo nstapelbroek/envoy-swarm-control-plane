@@ -1,6 +1,7 @@
 package disk
 
 import (
+	"fmt"
 	"io/ioutil"
 	"strings"
 
@@ -11,13 +12,14 @@ type CertificateStorage struct {
 	directory string
 }
 
-func (c *CertificateStorage) GetCertificate(domains []string) (publicChain, privateKey []byte, err error) {
-	publicChain, err = ioutil.ReadFile(c.directory + storage.GetCertificateChainFilename(domains))
+func (c *CertificateStorage) GetCertificate(domain string, sans []string) (publicChain, privateKey []byte, err error) {
+	fileName := storage.GetCertificateFilename(domain, sans)
+	publicChain, err = ioutil.ReadFile(fmt.Sprintf("%s/%s.%s", c.directory, fileName, storage.CertificateExtension))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	privateKey, err = ioutil.ReadFile(c.directory + storage.GetPrivateKeyFilename(domains))
+	privateKey, err = ioutil.ReadFile(fmt.Sprintf("%s/%s.%s", c.directory, fileName, storage.PrivateKeyExtension))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -26,7 +28,7 @@ func (c *CertificateStorage) GetCertificate(domains []string) (publicChain, priv
 }
 
 func NewCertificateStorage(path string) *CertificateStorage {
-	path = strings.TrimSuffix(path, "/") + "/"
+	path = strings.TrimSuffix(path, "/")
 
 	return &CertificateStorage{directory: path}
 }

@@ -2,6 +2,7 @@ package tls
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -54,7 +55,7 @@ func NewCertificateSecretsProvider(controlPlaneClusterName string, certificateSt
 }
 
 func (p *CertificateSecretsProvider) HasCertificate(vhost *route.VirtualHost) bool {
-	_, _, err := p.storage.GetCertificate(vhost.Domains)
+	_, _, err := p.getCertificateFromStorage(vhost)
 	return err == nil
 }
 
@@ -74,9 +75,9 @@ func (p *CertificateSecretsProvider) Provide(ctx context.Context) (secrets []typ
 		vhost := p.requestedCertificates[sdsKey]
 
 		// Assume that certificates are just there, no snake-oil fallback at this moment
-		publicChain, privateKey, err := p.storage.GetCertificate(vhost.Domains)
+		publicChain, privateKey, err := p.getCertificateFromStorage(vhost)
 		if err != nil {
-			return secrets, err
+			continue
 		}
 
 		secrets = append(secrets, &auth.Secret{
@@ -99,4 +100,15 @@ func (p *CertificateSecretsProvider) Provide(ctx context.Context) (secrets []typ
 
 func (p *CertificateSecretsProvider) getSecretConfigKey(vhost *route.VirtualHost) string {
 	return p.configKeyPrefix + strings.ToLower(vhost.Name)
+}
+
+func (p *CertificateSecretsProvider) getCertificateFromStorage(vhost *route.VirtualHost) ([]byte, []byte, error) {
+	// We will use the first domain in the slice as the primary domain name
+	// conveniently this happens to to match the way we parse labels @see TestVhostPrimaryDomainIsFirstInDomains
+	domains := vhost.GetDomains()
+	if len(domains) == 0 {
+		return nil, nil, errors.New("vhost contains no domains")
+	}
+
+	return p.storage.GetCertificate(vhost.GetDomains()[0], vhost.GetDomains())
 }

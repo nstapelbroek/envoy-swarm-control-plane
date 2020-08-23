@@ -1,5 +1,5 @@
 package storage
 
 type CertificateStorage interface {
-	GetCertificate(domains []string) (publicChain, privateKey []byte, err error)
+	GetCertificate(domain string, sans []string) (publicChain, privateKey []byte, err error)
 }
