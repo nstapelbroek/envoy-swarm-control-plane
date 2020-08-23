@@ -38,7 +38,7 @@ var (
 func init() {
 	flag.BoolVar(&debug, "debug", false, "Use debug logging")
 	flag.UintVar(&port, "port", 9876, "Management server port")
-	flag.StringVar(&ingressNetwork, "ingress-network", "", "The swarm network name or ID that all services share with the envoy instances")
+	flag.StringVar(&ingressNetwork, "ingress-network", "edge-traffic", "The swarm network name or ID that all services share with the envoy instances")
 	flag.StringVar(&controlPlaneClusterName, "control-plane-cluster-name", "control_plane", "Name of the cluster your envoy instances are contacting for ADS/SDS")
 	flag.StringVar(&letsEncryptEmail, "lets-encrypt-email", "", "Enable letsEncrypt TLS certificate issuing by providing a expiration notice email")
 	flag.StringVar(&storageEndpoint, "storage-endpoint", "", "Host endpoint for the s3 certificate storage")
