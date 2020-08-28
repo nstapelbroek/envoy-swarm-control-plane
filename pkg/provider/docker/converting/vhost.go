@@ -1,32 +1,32 @@
 package converting
 
 import (
-	"errors"
 	"fmt"
 
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 )
 
 type VhostCollection struct {
-	Vhosts map[string]*route.VirtualHost
+	Vhosts      map[string]*route.VirtualHost
+	usedDomains map[string]*route.VirtualHost
 }
 
 func NewVhostCollection() *VhostCollection {
 	return &VhostCollection{
-		Vhosts: make(map[string]*route.VirtualHost),
+		Vhosts:      make(map[string]*route.VirtualHost),
+		usedDomains: make(map[string]*route.VirtualHost),
 	}
 }
 
-func (w VhostCollection) AddRoute(clusterIdentifier string, labels *ServiceLabel) (err error) {
+func (w VhostCollection) AddService(clusterIdentifier string, labels *ServiceLabel) (err error) {
 	primaryDomain := labels.Route.Domain
-	for _, extraDomain := range labels.Route.ExtraDomains {
-		if err := w.validateExtraDomain(extraDomain); err != nil {
-			return err
-		}
-	}
 
 	virtualHost, exist := w.Vhosts[primaryDomain]
 	if !exist {
+		if _, exist := w.usedDomains[primaryDomain]; exist {
+			return fmt.Errorf("domain %s is already used in another vhost", primaryDomain)
+		}
+
 		virtualHost = &route.VirtualHost{
 			Name:    primaryDomain,
 			Domains: []string{primaryDomain},
@@ -34,9 +34,36 @@ func (w VhostCollection) AddRoute(clusterIdentifier string, labels *ServiceLabel
 		}
 	}
 
-	virtualHost.Domains = append(virtualHost.Domains, labels.Route.ExtraDomains...)
+	// Calculate and validate changes to the vhost domains
+	var extraDomains []string
+	for _, extraDomain := range labels.Route.ExtraDomains {
+		if extraDomain == primaryDomain {
+			continue
+		}
 
-	newRoute := &route.Route{
+		if v, exist := w.usedDomains[extraDomain]; exist {
+			if v != virtualHost {
+				return fmt.Errorf("domain %s is already used in another vhost", extraDomain)
+			}
+			continue
+		}
+		extraDomains = append(extraDomains, extraDomain)
+	}
+
+	// Validation ended above, applying changes
+	w.Vhosts[primaryDomain] = virtualHost
+	w.usedDomains[primaryDomain] = virtualHost
+	virtualHost.Routes = append(virtualHost.Routes, w.createRoute(clusterIdentifier, labels))
+	for i := range extraDomains {
+		virtualHost.Domains = append(virtualHost.Domains, extraDomains[i])
+		w.usedDomains[extraDomains[i]] = virtualHost
+	}
+
+	return nil
+}
+
+func (w VhostCollection) createRoute(clusterIdentifier string, labels *ServiceLabel) *route.Route {
+	return &route.Route{
 		Name: clusterIdentifier + "_route",
 		Match: &route.RouteMatch{
 			PathSpecifier: &route.RouteMatch_Prefix{
@@ -51,26 +78,6 @@ func (w VhostCollection) AddRoute(clusterIdentifier string, labels *ServiceLabel
 			},
 		},
 	}
-	if err := newRoute.Validate(); err != nil {
-		return err
-	}
-
-	virtualHost.Routes = append(virtualHost.Routes, newRoute)
-	w.Vhosts[primaryDomain] = virtualHost
-
-	return nil
-}
-
-func (w VhostCollection) validateExtraDomain(domain string) error {
-	if domain == "*" {
-		return errors.New("wildcard cannot be used in an extra domain")
-	}
-
-	if w.Vhosts[domain] != nil {
-		return fmt.Errorf("domain %s is already used as a primary domain in another vhost", domain)
-	}
-
-	return nil
 }
 
 func CreateRedirectVhost(originalVhost *route.VirtualHost) *route.VirtualHost {

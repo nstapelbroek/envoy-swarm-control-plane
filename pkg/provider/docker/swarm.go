@@ -84,7 +84,7 @@ func (s *SwarmProvider) provideClustersAndVhosts(ctx context.Context) (clusters 
 			continue
 		}
 
-		err = vhosts.AddRoute(cluster.Name, labels)
+		err = vhosts.AddService(cluster.Name, labels)
 		if err != nil {
 			log.Warnf("skipped creating vhost for service because %s", err.Error())
 			continue
