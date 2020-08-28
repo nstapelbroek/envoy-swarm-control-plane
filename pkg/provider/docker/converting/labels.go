@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	valid "github.com/asaskevich/govalidator"
 	types "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 )
 
@@ -16,7 +17,7 @@ type ServiceEndpoint struct {
 
 type ServiceRoute struct {
 	Domain       string
-	ExtraDomains []string
+	ExtraDomains []string // Note that you cannot assume that the domain or extraDomains are valid and reachable
 	Path         string
 }
 
@@ -96,6 +97,16 @@ func (l ServiceLabel) Validate() error {
 
 	if l.Route.Domain == "" {
 		return errors.New("there is no route.domain label specified")
+	}
+
+	if !valid.IsDNSName(l.Route.Domain) {
+		return errors.New("the route.domain is not a valid DNS name")
+	}
+
+	for i := range l.Route.ExtraDomains {
+		if !valid.IsDNSName(l.Route.ExtraDomains[i]) {
+			return errors.New("the route.extra-domains contains an invalid DNS name")
+		}
 	}
 
 	return nil
