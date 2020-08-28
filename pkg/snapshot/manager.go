@@ -61,9 +61,13 @@ func (d *Manager) createSnapshot(clusters, listeners, secrets []types.Resource) 
 	snapshot.Resources[types.Listener] = cache.NewResources(version, listeners)
 	snapshot.Resources[types.Cluster] = cache.NewResources(version, clusters)
 	snapshot.Resources[types.Secret] = cache.NewResources(version, secrets)
+	err := snapshot.Consistent()
+	if err != nil {
+		return err
+	}
 
 	// todo this would be the point where we write it to all node ids?
-	err := d.snapshotCache.SetSnapshot("test-id", snapshot)
+	err = d.snapshotCache.SetSnapshot("test-id", snapshot)
 	if err != nil {
 		return err
 	}
