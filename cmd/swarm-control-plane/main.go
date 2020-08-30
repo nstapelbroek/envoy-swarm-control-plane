@@ -54,7 +54,7 @@ func main() {
 
 	snapshotStorage := cache.NewSnapshotCache(
 		false,
-		cache.IDHash{},
+		snapshot.StaticHash{},
 		internalLogger.Instance().WithFields(logger.Fields{"area": "snapshot-cache"}),
 	)
 

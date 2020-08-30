@@ -66,8 +66,7 @@ func (d *Manager) createSnapshot(clusters, listeners, secrets []types.Resource) 
 		return err
 	}
 
-	// todo this would be the point where we write it to all node ids?
-	err = d.snapshotCache.SetSnapshot("test-id", snapshot)
+	err = d.snapshotCache.SetSnapshot(staticHash, snapshot)
 	if err != nil {
 		return err
 	}
