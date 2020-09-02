@@ -11,6 +11,7 @@ import (
 // We'll use .pem and .key files to store our certificates, keeping it close to the RFCs 1421 through 1424
 const CertificateExtension = "pem"
 const PrivateKeyExtension = "key"
+const CertificateFileMode = 0600
 
 // GetCertificateFilename contains the business logic for generating consistent certificate file names
 func GetCertificateFilename(primaryDomain string, sans []string) string {

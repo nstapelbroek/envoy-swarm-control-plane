@@ -7,14 +7,13 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls/storage"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls/storage/disk"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls/storage/s3"
-
 	"github.com/nstapelbroek/envoy-swarm-control-plane/internal"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls/storage"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls/storage/disk"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls/storage/s3"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/snapshot"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/watcher"
 
@@ -31,6 +30,7 @@ var (
 	letsEncryptEmail        string
 	storagePath             string
 	storageEndpoint         string
+	storageBucket           string
 	storageAccessKey        string
 	storageSecretKey        string
 )
@@ -41,10 +41,11 @@ func init() {
 	flag.StringVar(&ingressNetwork, "ingress-network", "edge-traffic", "The swarm network name or ID that all services share with the envoy instances")
 	flag.StringVar(&controlPlaneClusterName, "control-plane-cluster-name", "control_plane", "Name of the cluster your envoy instances are contacting for ADS/SDS")
 	flag.StringVar(&letsEncryptEmail, "lets-encrypt-email", "", "Enable letsEncrypt TLS certificate issuing by providing a expiration notice email")
-	flag.StringVar(&storageEndpoint, "storage-endpoint", "", "Host endpoint for the s3 certificate storage")
+	flag.StringVar(&storageEndpoint, "storage-endpoint", "s3.amazonaws.com", "Host endpoint for the s3 certificate storage")
+	flag.StringVar(&storageBucket, "storage-bucket", "", "Bucket name of the certificate storage")
 	flag.StringVar(&storageAccessKey, "storage-access-key", "", "Access key to authenticate at the certificate storage")
 	flag.StringVar(&storageSecretKey, "storage-secret-key", "", "Secret key to authenticate at the certificate storage")
-	flag.StringVar(&storagePath, "storage-dir", "", "Local filesystem location where certificates are kept")
+	flag.StringVar(&storagePath, "storage-dir", "/etc/ssl/certs/", "Local filesystem location where certificates are kept")
 }
 
 func main() {
@@ -76,12 +77,14 @@ func main() {
 }
 
 func createCertificateStorage() storage.CertificateStorage {
+	localDisk := disk.NewCertificateStorage(storagePath)
+
 	// return early when no s3 credentials are set
-	if storageEndpoint == "" || storageAccessKey == "" || storageSecretKey == "" {
-		return disk.NewCertificateStorage(storagePath)
+	if storageBucket == "" || storageAccessKey == "" || storageSecretKey == "" {
+		return localDisk
 	}
 
-	s, err := s3.NewCertificateStorage(storageEndpoint, storageAccessKey, storageSecretKey)
+	s, err := s3.NewCertificateStorage(storageEndpoint, storageBucket, storageAccessKey, storageSecretKey, localDisk)
 	if err != nil {
 		internalLogger.Instance().Fatalf(err.Error())
 	}
