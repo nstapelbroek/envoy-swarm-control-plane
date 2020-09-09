@@ -13,8 +13,8 @@ const CertificateExtension = "pem"
 const PrivateKeyExtension = "key"
 const CertificateFileMode = 0600
 
-// GetCertificateFilename contains the business logic for generating consistent certificate file names
-func GetCertificateFilename(primaryDomain string, sans []string) string {
+// getCertificateFilename contains the business logic for generating consistent certificate file names
+func getCertificateFilename(primaryDomain string, sans []string) string {
 	filename := strings.ToLower(primaryDomain)
 
 	// Besides the human readable filename we need to add a hash
