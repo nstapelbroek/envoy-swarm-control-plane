@@ -1,3 +1,5 @@
+// A provider is the bridge between xDS objects and external services or certificates
+
 package provider
 
 import (
