@@ -105,9 +105,9 @@ func createLetsEncryptIntegration(userStorage acmestorage.User, certificateStora
 }
 
 func getStorage() storage.Storage {
-	disk := storage.NewDiskStorage(storagePath)
+	disk := storage.NewDiskStorage(storagePath, internalLogger.Instance().WithFields(logger.Fields{"area": "disk"}))
 
-	// return early when no certs3 credentials are set
+	// return early when no s3 credentials are set
 	if storageBucket == "" || storageAccessKey == "" || storageSecretKey == "" {
 		return disk
 	}

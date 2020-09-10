@@ -14,10 +14,10 @@ type DiskStorage struct {
 	logger    logger.Logger
 }
 
-func NewDiskStorage(path string) *DiskStorage {
+func NewDiskStorage(path string, log logger.Logger) *DiskStorage {
 	path = strings.TrimSuffix(path, "/")
 
-	return &DiskStorage{directory: path}
+	return &DiskStorage{directory: path, logger: log}
 }
 
 func (c *DiskStorage) GetFile(fileName string) (content []byte, err error) {
