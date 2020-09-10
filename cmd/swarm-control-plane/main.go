@@ -29,11 +29,11 @@ var (
 	debug            bool
 	leTermsAccepted  bool
 	xdsPort          uint
-	lePort           uint
+	acmePort         uint
 	ingressNetwork   string
 	xdsClusterName   string
-	leClusterName    string
-	leEmail          string
+	acmeClusterName  string
+	acmeEmail        string
 	storagePath      string
 	storageEndpoint  string
 	storageBucket    string
@@ -43,22 +43,22 @@ var (
 
 func init() {
 	// Required arguments with defaults shipped in the yaml
-	flag.StringVar(&storagePath, "tls_storage-dir", "/etc/ssl/certs/le", "Local filesystem location where certificates are kept")
+	flag.StringVar(&storagePath, "storage-dir", "/etc/ssl/certs/le", "Local filesystem location where certificates are kept")
 	flag.UintVar(&xdsPort, "xds-port", 9876, "The port where envoy instances can connect to for configuration updates")
-	flag.UintVar(&lePort, "le-port", 8080, "The port where envoy will proxy lets encrypt HTTP-01 challenges towards")
+	flag.UintVar(&acmePort, "acme-port", 8080, "The port where envoy will proxy lets encrypt HTTP-01 challenges towards")
 	flag.StringVar(&ingressNetwork, "ingress-network", "edge-traffic", "The swarm network name or ID that all services share with the envoy instances")
 	flag.StringVar(&xdsClusterName, "xds-cluster", "control_plane", "Name of the cluster your envoy instances are contacting for ADS/SDS")
-	flag.StringVar(&leClusterName, "le-cluster", "control_plane_le", "Name of the cluster your envoy instances are contacting for ADS/SDS")
+	flag.StringVar(&acmeClusterName, "acme-cluster", "control_plane_acme", "Name of the cluster your envoy instances are proxying for ACME HTTP-01 challenges")
 
 	// Required arguments for lets encrypt
-	flag.StringVar(&leEmail, "le-email", "", "When registering for LetsEncrypt certificates this e-mail will be used for the account")
-	flag.BoolVar(&leTermsAccepted, "le-accept-terms", false, "When registering for LetsEncrypt certificates this e-mail will be used for the account")
+	flag.StringVar(&acmeEmail, "acme-email", "", "When registering for LetsEncrypt certificates this e-mail will be used for the account")
+	flag.BoolVar(&leTermsAccepted, "acme-accept-terms", false, "When registering for LetsEncrypt certificates this e-mail will be used for the account")
 
 	// Optional arguments to store certificates in a object tls_storage
-	flag.StringVar(&storageEndpoint, "tls_storage-endpoint", "certs3.amazonaws.com", "Host endpoint for the certs3 certificate tls_storage")
-	flag.StringVar(&storageBucket, "tls_storage-bucket", "", "Bucket name of the certificate tls_storage")
-	flag.StringVar(&storageAccessKey, "tls_storage-access-key", "", "Access key to authenticate at the certificate tls_storage")
-	flag.StringVar(&storageSecretKey, "tls_storage-secret-key", "", "Secret key to authenticate at the certificate tls_storage")
+	flag.StringVar(&storageEndpoint, "storage-endpoint", "certs3.amazonaws.com", "Host endpoint for the certs3 certificate tls_storage")
+	flag.StringVar(&storageBucket, "storage-bucket", "", "Bucket name of the certificate tls_storage")
+	flag.StringVar(&storageAccessKey, "storage-access-key", "", "Access key to authenticate at the certificate tls_storage")
+	flag.StringVar(&storageSecretKey, "storage-secret-key", "", "Secret key to authenticate at the certificate tls_storage")
 
 	// Remainder flags
 	flag.BoolVar(&debug, "debug", false, "Use debug logging")
@@ -75,17 +75,12 @@ func main() {
 		internalLogger.Instance().WithFields(logger.Fields{"area": "snapshot-cache"}),
 	)
 
-	fileStorage := getStorage()
-	snsProvider := createSnsProvider(tlsstorage.Certificate{Storage: fileStorage}) // sns provider manages downstream TLS certificates
-	adsProvider := createAdsProvider(snsProvider)                                  // ads provider converts swarm services to clusters and listeners
-	leIntegration := createLetsEncryptIntegration(
-		acmestorage.User{Storage: fileStorage},
-		tlsstorage.Certificate{Storage: fileStorage},
-	)
+	snsProvider, acmeIntegration := setupTls()
+	adsProvider := setupDiscovery(snsProvider, acmeIntegration)
+
 	manager := snapshot.NewManager(
 		adsProvider,
 		snsProvider,
-		leIntegration,
 		snapshotStorage,
 		internalLogger.Instance().WithFields(logger.Fields{"area": "snapshot-manager"}),
 	)
@@ -96,12 +91,27 @@ func main() {
 	waitForSignal(main)
 }
 
-func createLetsEncryptIntegration(userStorage acmestorage.User, certificateStorage tlsstorage.Certificate) *acme.Integration {
-	if leTermsAccepted == false || leEmail == "" {
-		return nil
+// setupTls will create an sds provider for sending tls certificates to clusters and an optional LetsEncrypt integration to issue new certificates
+func setupTls() (sdsProvider provider.SDS, acmeIntegration *acme.Integration) {
+	fileStorage := getStorage()
+	certificateStorage := tlsstorage.Certificate{Storage: fileStorage}
+	sdsProvider = tls.NewCertificateSecretsProvider(
+		xdsClusterName,
+		certificateStorage,
+		internalLogger.Instance().WithFields(logger.Fields{"area": "sds-provider"}),
+	)
+
+	if leTermsAccepted == true || acmeEmail != "" {
+		acmeIntegration = acme.NewIntegration(
+			acmePort,
+			acmeEmail,
+			acmestorage.User{Storage: fileStorage},
+			certificateStorage,
+			internalLogger.Instance().WithFields(logger.Fields{"area": "acme"}),
+		)
 	}
 
-	return acme.NewIntegration(lePort, leEmail, userStorage, certificateStorage)
+	return sdsProvider, acmeIntegration
 }
 
 func getStorage() storage.Storage {
@@ -132,19 +142,12 @@ func createEventProducers(main context.Context) chan snapshot.UpdateReason {
 	return UpdateEvents
 }
 
-func createAdsProvider(snsProvider provider.SDS) provider.ADS {
+func setupDiscovery(snsProvider provider.SDS, acmeIntegration *acme.Integration) provider.ADS {
 	return docker.NewSwarmProvider(
 		ingressNetwork,
 		snsProvider,
 		internalLogger.Instance().WithFields(logger.Fields{"area": "ads-provider"}),
-	)
-}
-
-func createSnsProvider(certificateStorage tlsstorage.Certificate) provider.SDS {
-	return tls.NewCertificateSecretsProvider(
-		xdsClusterName,
-		certificateStorage,
-		internalLogger.Instance().WithFields(logger.Fields{"area": "sns-provider"}),
+		acmeIntegration,
 	)
 }
 

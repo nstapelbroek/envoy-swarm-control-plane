@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/acme"
+
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/client"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider"
 
@@ -18,14 +20,16 @@ type SwarmProvider struct {
 	ingressNetwork string // the network name/id where our envoy communicates with services
 	dockerClient   docker.APIClient
 	sdsProvider    provider.SDS
+	acme           *acme.Integration
 	logger         logger.Logger
 }
 
-func NewSwarmProvider(ingressNetwork string, sdsProvider provider.SDS, log logger.Logger) *SwarmProvider {
+func NewSwarmProvider(ingressNetwork string, sdsProvider provider.SDS, log logger.Logger, integration *acme.Integration) *SwarmProvider {
 	return &SwarmProvider{
 		dockerClient:   client.NewDockerClient(),
 		sdsProvider:    sdsProvider,
 		ingressNetwork: ingressNetwork,
+		acme:           integration,
 		logger:         log,
 	}
 }

@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/acme"
-
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
@@ -15,16 +13,14 @@ import (
 type Manager struct {
 	adsProvider   provider.ADS
 	sdsProvider   provider.SDS
-	leIntegration *acme.Integration
 	snapshotCache cache.SnapshotCache
 	logger        logger.Logger
 }
 
-func NewManager(ads provider.ADS, sds provider.SDS, le *acme.Integration, c cache.SnapshotCache, log logger.Logger) *Manager {
+func NewManager(ads provider.ADS, sds provider.SDS, c cache.SnapshotCache, log logger.Logger) *Manager {
 	return &Manager{
 		adsProvider:   ads,
 		sdsProvider:   sds,
-		leIntegration: le,
 		snapshotCache: c,
 		logger:        log,
 	}
