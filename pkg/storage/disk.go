@@ -9,6 +9,8 @@ import (
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
 )
 
+const fileMode = 0600
+
 type DiskStorage struct {
 	directory string
 	logger    logger.Logger
@@ -36,7 +38,7 @@ func (c *DiskStorage) PutFile(fileName string, contents []byte) (err error) {
 	err = ioutil.WriteFile(
 		fmt.Sprintf("%s/%s", c.directory, fileName),
 		contents,
-		os.FileMode(0600),
+		os.FileMode(fileMode),
 	)
 	if err != nil {
 		log.Warnf("error while writing file", err.Error())

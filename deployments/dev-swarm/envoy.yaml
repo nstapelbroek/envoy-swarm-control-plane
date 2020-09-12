@@ -27,7 +27,10 @@ node:
 
 static_resources:
   clusters:
-    - connect_timeout: 5s
+    - name: control_plane
+      type: strict_dns
+      connect_timeout: 5s
+      http2_protocol_options: {}
       load_assignment:
         cluster_name: control_plane
         endpoints:
@@ -37,6 +40,16 @@ static_resources:
                     socket_address:
                       address: host.docker.internal
                       port_value: 9876
-      http2_protocol_options: {}
-      name: control_plane
+
+    - name: control_plane_le
       type: strict_dns
+      connect_timeout: 5s
+      load_assignment:
+        cluster_name: control_plane_le
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: host.docker.internal
+                      port_value: 8080

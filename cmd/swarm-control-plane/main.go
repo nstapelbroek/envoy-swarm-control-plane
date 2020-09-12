@@ -8,7 +8,6 @@ import (
 	"syscall"
 
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/acme"
-	acmestorage "github.com/nstapelbroek/envoy-swarm-control-plane/pkg/acme/storage"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/client"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls"
 	tlsstorage "github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls/storage"
@@ -22,7 +21,7 @@ import (
 
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	internalLogger "github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/docker"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/swarm"
 )
 
 var (
@@ -75,7 +74,7 @@ func main() {
 		internalLogger.Instance().WithFields(logger.Fields{"area": "snapshot-cache"}),
 	)
 
-	snsProvider, acmeIntegration := setupTls()
+	snsProvider, acmeIntegration := setupTLS()
 	adsProvider := setupDiscovery(snsProvider, acmeIntegration)
 
 	manager := snapshot.NewManager(
@@ -91,8 +90,8 @@ func main() {
 	waitForSignal(main)
 }
 
-// setupTls will create an sds provider for sending tls certificates to clusters and an optional LetsEncrypt integration to issue new certificates
-func setupTls() (sdsProvider provider.SDS, acmeIntegration *acme.Integration) {
+// setupTLS will create an sds provider for sending tls certificates to clusters and an optional LetsEncrypt integration to issue new certificates
+func setupTLS() (sdsProvider provider.SDS, acmeIntegration *acme.Integration) {
 	fileStorage := getStorage()
 	certificateStorage := tlsstorage.Certificate{Storage: fileStorage}
 	sdsProvider = tls.NewCertificateSecretsProvider(
@@ -101,11 +100,11 @@ func setupTls() (sdsProvider provider.SDS, acmeIntegration *acme.Integration) {
 		internalLogger.Instance().WithFields(logger.Fields{"area": "sds-provider"}),
 	)
 
-	if leTermsAccepted == true || acmeEmail != "" {
+	if leTermsAccepted && acmeEmail != "" {
 		acmeIntegration = acme.NewIntegration(
 			acmePort,
 			acmeEmail,
-			acmestorage.User{Storage: fileStorage},
+			acmeClusterName,
 			certificateStorage,
 			internalLogger.Instance().WithFields(logger.Fields{"area": "acme"}),
 		)
@@ -135,19 +134,26 @@ func createEventProducers(main context.Context) chan snapshot.UpdateReason {
 	log := internalLogger.Instance().WithFields(logger.Fields{"area": "watcher"})
 
 	go watcher.ForSwarmEvent(log).Watch(main, UpdateEvents)
-	//go watcher.ForNewTLSDomains(log).Watch(main, UpdateEvents)
+	// go watcher.ForNewTLSDomains(log).Watch(main, UpdateEvents)
 	// go watcher.ForCertificateExpiration(snsProvider,internalLogger.Instance().WithFields(log.Fields{"area": "watcher"})).Watch(main, UpdateEvents)
 	go watcher.CreateInitialStartupEvent(UpdateEvents)
 
 	return UpdateEvents
 }
 
+// setupDiscovery configures the discovery specifics that extracts clusters, endpoints, listeners and routes from swarm service's
 func setupDiscovery(snsProvider provider.SDS, acmeIntegration *acme.Integration) provider.ADS {
-	return docker.NewSwarmProvider(
-		ingressNetwork,
+	// Our Listener converter will contain logic to plug vhost into http or https listeners
+	// while negotiating tls state at the SDS and LetEncrypt services
+	listenerBuilder := swarm.NewListenerBuilder(
 		snsProvider,
-		internalLogger.Instance().WithFields(logger.Fields{"area": "ads-provider"}),
 		acmeIntegration,
+	)
+
+	return swarm.NewADSProvider(
+		ingressNetwork,
+		listenerBuilder,
+		internalLogger.Instance().WithFields(logger.Fields{"area": "ads-provider"}),
 	)
 }
 

@@ -42,8 +42,8 @@ func (o *ObjectStorage) GetFile(objectName string) (contents []byte, err error) 
 	return o.cache.GetFile(objectName)
 }
 
-func (o *ObjectStorage) PutFile(ObjectName string, contents []byte) (err error) {
-	err = o.cache.PutFile(ObjectName, contents)
+func (o *ObjectStorage) PutFile(objectName string, contents []byte) (err error) {
+	err = o.cache.PutFile(objectName, contents)
 	if err != nil {
 		return err
 	}
@@ -54,8 +54,8 @@ func (o *ObjectStorage) PutFile(ObjectName string, contents []byte) (err error) 
 	_, err = o.client.FPutObject(
 		ctx,
 		o.bucketName,
-		ObjectName,
-		fmt.Sprintf("%s/%s", o.cache.GetStorageDirectory(), ObjectName),
+		objectName,
+		fmt.Sprintf("%s/%s", o.cache.GetStorageDirectory(), objectName),
 		minio.PutObjectOptions{},
 	)
 

@@ -1,57 +1,54 @@
-package docker
+package swarm
 
 import (
 	"context"
 	"errors"
 
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/acme"
-
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/client"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider"
+	"github.com/docker/docker/api/types/swarm"
 
 	swarmtypes "github.com/docker/docker/api/types"
 	docker "github.com/docker/docker/client"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/client"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/docker/converting"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/swarm/converting"
 )
 
-type SwarmProvider struct {
-	ingressNetwork string // the network name/id where our envoy communicates with services
-	dockerClient   docker.APIClient
-	sdsProvider    provider.SDS
-	acme           *acme.Integration
-	logger         logger.Logger
+// ADSProvider will convert swarm service definitions and labels into cluster, listener and route configuration for Envoy
+type ADSProvider struct {
+	ingressNetwork  string // the network name/id where our envoy communicates with services
+	dockerClient    docker.APIClient
+	listenerBuilder *ListenerBuilder
+	logger          logger.Logger
 }
 
-func NewSwarmProvider(ingressNetwork string, sdsProvider provider.SDS, log logger.Logger, integration *acme.Integration) *SwarmProvider {
-	return &SwarmProvider{
-		dockerClient:   client.NewDockerClient(),
-		sdsProvider:    sdsProvider,
-		ingressNetwork: ingressNetwork,
-		acme:           integration,
-		logger:         log,
+func NewADSProvider(ingressNetwork string, builder *ListenerBuilder, log logger.Logger) *ADSProvider {
+	return &ADSProvider{
+		dockerClient:    client.NewDockerClient(),
+		listenerBuilder: builder,
+		ingressNetwork:  ingressNetwork,
+		logger:          log,
 	}
 }
 
-// ProvideClustersAndListener will break down swarm service definitions into clusters and listeners internally those are composed of endpoints routes etc.
-func (s *SwarmProvider) Provide(ctx context.Context) (clusters, listeners []types.Resource, err error) {
+func (s *ADSProvider) Provide(ctx context.Context) (clusters, listeners []types.Resource, err error) {
 	clusters, vhosts, err := s.provideClustersAndVhosts(ctx)
 	if err != nil {
+		s.logger.Errorf("Failed creating clusters and vhost configurations")
 		return nil, nil, err
 	}
 
-	if s.sdsProvider == nil {
-		listeners = append(listeners, mapVhostsToHTTPListener(vhosts))
-		return clusters, listeners, nil
+	listeners, err = s.listenerBuilder.ProvideListeners(vhosts)
+	if err != nil {
+		s.logger.Errorf("Failed converting the vhosts into a listener configuration")
+		return nil, nil, err
 	}
-
-	listeners = mapVhostsToHTTPSListeners(vhosts, s.sdsProvider)
 
 	return clusters, listeners, nil
 }
 
-func (s *SwarmProvider) provideClustersAndVhosts(ctx context.Context) (clusters []types.Resource, vhosts *converting.VhostCollection, err error) {
+// provideClustersAndVhosts will break down swarm service definitions into clusters, endpoints and vhosts
+func (s *ADSProvider) provideClustersAndVhosts(ctx context.Context) (clusters []types.Resource, vhosts *converting.VhostCollection, err error) {
 	// Make sure we have up-to-date info about our ingress network
 	ingress, err := s.getIngressNetwork(ctx)
 	if err != nil {
@@ -100,7 +97,7 @@ func (s *SwarmProvider) provideClustersAndVhosts(ctx context.Context) (clusters 
 	return clusters, vhosts, nil
 }
 
-func (s *SwarmProvider) getIngressNetwork(ctx context.Context) (network swarmtypes.NetworkResource, err error) {
+func (s *ADSProvider) getIngressNetwork(ctx context.Context) (network swarmtypes.NetworkResource, err error) {
 	network, err = s.dockerClient.NetworkInspect(ctx, s.ingressNetwork, swarmtypes.NetworkInspectOptions{})
 	if err != nil {
 		return
@@ -111,4 +108,14 @@ func (s *SwarmProvider) getIngressNetwork(ctx context.Context) (network swarmtyp
 	}
 
 	return
+}
+
+func inIngressNetwork(service *swarm.Service, ingress *swarmtypes.NetworkResource) bool {
+	for _, vip := range service.Endpoint.VirtualIPs {
+		if vip.NetworkID == ingress.ID {
+			return true
+		}
+	}
+
+	return false
 }

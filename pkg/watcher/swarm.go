@@ -29,7 +29,7 @@ func (s SwarmEvent) Watch(ctx context.Context, dispatchChannel chan snapshot.Upd
 		select {
 		case <-events:
 			s.logger.Debugf("received service event from docker")
-			dispatchChannel <- "swarm event" // todo investigate if waiting for a receiver here blocks other interactions with the docker docker.
+			dispatchChannel <- "swarm event" // todo investigate if waiting for a receiver here blocks other interactions.
 		case err := <-errorEvent:
 			s.logger.Errorf(err.Error())
 			s.Watch(ctx, dispatchChannel) // Auto recover on errors @see github.com/docker/engine/docker/events.go:19
