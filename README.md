@@ -1,4 +1,4 @@
-# Envoy Swarm control plane
+# Envoy Swarm Control Plane
 Opinionated control plane software that enables Envoy as an edge proxy in a docker swarm cluster.
 
 todo: logo or small demo
