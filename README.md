@@ -1,14 +1,23 @@
 # Envoy Swarm control plane
-Opinionated control plane software that enables Envoy as an edge proxy in your swarm cluster.
+Opinionated control plane software that enables Envoy as an edge proxy in a docker swarm cluster.
 
-## Context
-A recent re-evaluation of my cluster has put me in a twilight zone between Kubernetes and Docker Swarm (again). While
-Kubernetes is inevitable I wanted to play around with ingress & mesh networks before delegating most of the heavy lifting to CNCF products.
-Docker Swarm presents a chance to keep things simple and relatively cheap. I wanted an easy configurable (thus opinionated),
-replicable edge proxy to pass HTTP traffic to a handful of swarm services using its build-in routing mesh.
+todo: logo or small demo
 
-In my former setup I used [Traefik](https://traefik.io). Being a long-time watcher of certain swarm- or high-availability- challenges in this excellent router I thought I'd try 
-a more opinionated setup where less state resides in the Router itself. [Envoy](https://envoyproxy.io/) seemed like a good tool for this, so here we are.
+todo: add feature list, the problem it solves and what it enables
+
+## Background
+Early 2020 I faced a couple of challenges while attempting to isolate my swarm manager nodes from service workloads. The
+goal was to increase reliability of the swarm by making it easier to replicate key parts of the infrastructure in 
+case of a node failure. Swarm's service mesh would take care of most resiliency workarounds when a replicated part fails. 
+
+Most of my workloads are HTTP services. I figured that replicating the single instance load balancer/proxy to worker  
+nodes would help offloading managers and prevent it from being a single point of failure. The challenge here was moving the
+state like TLS certificates, container endpoints and LetsEncrypt challenges out of the proxy.
+[Envoy](https://envoyproxy.io/) seemed like a good approach for this.
+ 
+As a bonus I wanted to play around with ingress & mesh networks before delegating most of the heavy lifting to CNCF 
+products on something bigger like Kubernetes. Docker Swarm presents a chance to keep things simple and cheap for 
+the pet projects that I'm running. This project aims to be the same: simple to operate and cheap on the required infrastructure.
 
 ### Design scope
 - Envoy proxy will take care of receiving traffic on the edge
