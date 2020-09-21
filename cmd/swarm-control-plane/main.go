@@ -76,7 +76,6 @@ func main() {
 
 	snsProvider, acmeIntegration := setupTLS()
 	adsProvider := setupDiscovery(snsProvider, acmeIntegration)
-
 	manager := snapshot.NewManager(
 		adsProvider,
 		snsProvider,
@@ -84,10 +83,25 @@ func main() {
 		internalLogger.Instance().WithFields(logger.Fields{"area": "snapshot-manager"}),
 	)
 
-	events := createEventProducers(main)
+	events := createWatchers(main, snapshotStorage, acmeIntegration)
 	go manager.Listen(events)
 	go internal.RunXDSServer(main, snapshotStorage, xdsPort)
+
 	waitForSignal(main)
+}
+
+// createWatchers will boot all background watchers that can cause an state update in the control plane
+func createWatchers(ctx context.Context, snapshotStorage cache.ConfigWatcher, acmeIntegration *acme.Integration) chan snapshot.UpdateReason {
+	UpdateEvents := make(chan snapshot.UpdateReason)
+	log := internalLogger.Instance().WithFields(logger.Fields{"area": "watcher"})
+
+	go watcher.ForSwarmEvent(log).Start(ctx, UpdateEvents)
+	go watcher.CreateInitialStartupEvent(UpdateEvents)
+	if acmeIntegration != nil {
+		go watcher.ForMissingCertificates(acmeIntegration, snapshotStorage, log).Start(ctx, UpdateEvents)
+	}
+
+	return UpdateEvents
 }
 
 // setupTLS will create an sds provider for sending tls certificates to clusters and an optional LetsEncrypt integration to issue new certificates
@@ -102,12 +116,13 @@ func setupTLS() (sdsProvider provider.SDS, acmeIntegration *acme.Integration) {
 
 	if leTermsAccepted && acmeEmail != "" {
 		acmeIntegration = acme.NewIntegration(
-			acmePort,
 			acmeEmail,
 			acmeClusterName,
+			acmePort,
 			certificateStorage,
 			internalLogger.Instance().WithFields(logger.Fields{"area": "acme"}),
 		)
+
 	}
 
 	return sdsProvider, acmeIntegration
@@ -126,19 +141,6 @@ func getStorage() storage.Storage {
 		internalLogger.Instance().Fatalf(err.Error())
 	}
 	return storage.NewObjectStorage(minioClient, storageBucket, disk)
-}
-
-// createEventProducers will create a single place where multiple async triggers can coordinate an update of our state
-func createEventProducers(main context.Context) chan snapshot.UpdateReason {
-	UpdateEvents := make(chan snapshot.UpdateReason)
-	log := internalLogger.Instance().WithFields(logger.Fields{"area": "watcher"})
-
-	go watcher.ForSwarmEvent(log).Watch(main, UpdateEvents)
-	// go watcher.ForNewTLSDomains(log).Watch(main, UpdateEvents)
-	// go watcher.ForCertificateExpiration(snsProvider,internalLogger.Instance().WithFields(log.Fields{"area": "watcher"})).Watch(main, UpdateEvents)
-	go watcher.CreateInitialStartupEvent(UpdateEvents)
-
-	return UpdateEvents
 }
 
 // setupDiscovery configures the discovery specifics that extracts clusters, endpoints, listeners and routes from swarm service's

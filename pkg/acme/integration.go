@@ -6,32 +6,28 @@ import (
 	acme "github.com/nstapelbroek/envoy-swarm-control-plane/pkg/acme/storage"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
 	tls "github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls/storage"
+	"sync"
 )
 
 type Integration struct {
-	http01Port  uint
-	http01Route *route.Route
-	lego        *lego.Client
-	userStorage acme.User
-	certStorage tls.Certificate
-	logger      logger.Logger
+	http01Port    uint
+	http01Cluster string
+	acmeEmail     string
+	issueBacklog  [][]string
+	mutex         sync.Mutex
+	lego          *lego.Client
+	certStorage   tls.Certificate
+	logger        logger.Logger
 }
 
-func NewIntegration(port uint, userEmail, acmeClusterName string, certStorage tls.Certificate, log logger.Logger) *Integration {
-	r := &route.Route{
-		Name: "acme_http01_route",
-		Match: &route.RouteMatch{
-			PathSpecifier: &route.RouteMatch_Prefix{
-				Prefix: "/.well_known/",
-			},
-		},
-		Action: &route.Route_Route{
-			Route: &route.RouteAction{
-				ClusterSpecifier: &route.RouteAction_Cluster{
-					Cluster: acmeClusterName,
-				},
-			},
-		},
+func NewIntegration(userEmail, acmeClusterName string, acmeChallengePort uint, certStorage tls.Certificate, log logger.Logger) *Integration {
+	return &Integration{
+		http01Port:    acmeChallengePort,
+		http01Cluster: acmeClusterName,
+		issueBacklog:  [][]string{},
+		acmeEmail:     userEmail,
+		certStorage:   certStorage,
+		logger:        log,
 	}
 
 	// We store the acme user keys in the same directory as the certificates for now
@@ -42,4 +38,12 @@ func NewIntegration(port uint, userEmail, acmeClusterName string, certStorage tl
 
 func (i *Integration) GetHTTP01Route() *route.Route {
 	return i.http01Route
+}
+
+func (i *Integration) IssueCertificates() (reloadRequired bool, err error) {
+	if len(i.issueBacklog) == 0 {
+		return false, nil
+	}
+
+	return true, nil
 }

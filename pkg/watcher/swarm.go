@@ -20,7 +20,7 @@ func ForSwarmEvent(log logger.Logger) *SwarmEvent {
 	return &SwarmEvent{client: client.NewDockerClient(), logger: log}
 }
 
-func (s SwarmEvent) Watch(ctx context.Context, dispatchChannel chan snapshot.UpdateReason) {
+func (s SwarmEvent) Start(ctx context.Context, dispatchChannel chan snapshot.UpdateReason) {
 	events, errorEvent := s.client.Events(ctx, types.EventsOptions{
 		Filters: filters.NewArgs(filters.KeyValuePair{Key: "type", Value: "service"}),
 	})
@@ -32,7 +32,7 @@ func (s SwarmEvent) Watch(ctx context.Context, dispatchChannel chan snapshot.Upd
 			dispatchChannel <- "swarm event" // todo investigate if waiting for a receiver here blocks other interactions.
 		case err := <-errorEvent:
 			s.logger.Errorf(err.Error())
-			s.Watch(ctx, dispatchChannel) // Auto recover on errors @see github.com/docker/engine/docker/events.go:19
+			s.Start(ctx, dispatchChannel) // Auto recover on errors @see github.com/docker/engine/docker/events.go:19
 		}
 	}
 }
