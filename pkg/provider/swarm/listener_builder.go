@@ -36,8 +36,9 @@ func (l *ListenerBuilder) ProvideListeners(collection *converting.VhostCollectio
 			continue
 		}
 
+		// At this point, there is no valid TLS certificate for the vhost available, we can try to issue one
 		if l.acmeIntegration != nil {
-			vhost.Routes = append(vhost.Routes, l.acmeIntegration.GetHTTP01Route())
+			vhost = l.acmeIntegration.PrepareVhostForIssuing(vhost)
 		}
 
 		httpFilter.ForVhost(vhost)

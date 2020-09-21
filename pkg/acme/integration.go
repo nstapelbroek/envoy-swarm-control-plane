@@ -3,7 +3,6 @@ package acme
 import (
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"github.com/go-acme/lego/v4/lego"
-	acme "github.com/nstapelbroek/envoy-swarm-control-plane/pkg/acme/storage"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
 	tls "github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls/storage"
 	"sync"
@@ -29,15 +28,35 @@ func NewIntegration(userEmail, acmeClusterName string, acmeChallengePort uint, c
 		certStorage:   certStorage,
 		logger:        log,
 	}
-
-	// We store the acme user keys in the same directory as the certificates for now
-	u := acme.User{Storage: certStorage.Storage}
-
-	return &Integration{http01Port: port, http01Route: r, userStorage: u, certStorage: certStorage, logger: log}
 }
 
-func (i *Integration) GetHTTP01Route() *route.Route {
-	return i.http01Route
+//PrepareVhostForIssuing will register and prepare the vhost for an ACME challenge
+// note that the actual issuing is async
+func (i *Integration) PrepareVhostForIssuing(vhost *route.VirtualHost) *route.VirtualHost {
+	i.mutex.Lock()
+	i.issueBacklog = append(i.issueBacklog, vhost.Domains)
+	i.mutex.Unlock()
+
+	vhost.Routes = append(vhost.Routes,
+		&route.Route{
+			Name: "acme_http01_route",
+			Match: &route.RouteMatch{
+				PathSpecifier: &route.RouteMatch_Prefix{
+					Prefix: "/.well_known/",
+				},
+			},
+			Action: &route.Route_Route{
+				Route: &route.RouteAction{
+					ClusterSpecifier: &route.RouteAction_Cluster{
+						Cluster: i.http01Cluster,
+					},
+				},
+			},
+		})
+
+	i.logger.WithFields(logger.Fields{"vhost": vhost.Name}).Debugf("Queued certificate issuing for vhost")
+
+	return vhost
 }
 
 func (i *Integration) IssueCertificates() (reloadRequired bool, err error) {
