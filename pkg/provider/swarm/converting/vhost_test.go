@@ -1,6 +1,7 @@
 package converting
 
 import (
+	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"testing"
 
 	"gotest.tools/assert"
@@ -47,14 +48,14 @@ func TestCombinedVhostDomainsIsTheSumOfAllLabels(t *testing.T) {
 		Route: ServiceRoute{
 			Domain:       "example.com",
 			ExtraDomains: []string{"www.example.com"},
-			Path:         "/",
+			PathPrefix:   "/",
 		},
 	}
 	bLabels := ServiceLabel{
 		Route: ServiceRoute{
 			Domain:       "example.com",
 			ExtraDomains: []string{"www.example.com", "api.example.com"},
-			Path:         "/api",
+			PathPrefix:   "/api",
 		},
 	}
 
@@ -62,6 +63,55 @@ func TestCombinedVhostDomainsIsTheSumOfAllLabels(t *testing.T) {
 	_ = collection.AddService("backend", &bLabels)
 
 	assert.Equal(t, len(collection.Vhosts["example.com"].GetDomains()), 3)
+}
+
+func TestRoutesAreAddedPerService(t *testing.T) {
+	collection := NewVhostCollection()
+	fLabels := ServiceLabel{
+		Route: ServiceRoute{
+			Domain:       "example.com",
+			ExtraDomains: []string{},
+			PathPrefix:   "/",
+		},
+	}
+	bLabels := ServiceLabel{
+		Route: ServiceRoute{
+			Domain:       "example.com",
+			ExtraDomains: []string{},
+			PathPrefix:   "/api",
+		},
+	}
+
+	_ = collection.AddService("frontend", &fLabels)
+	_ = collection.AddService("backend", &bLabels)
+	routes := collection.Vhosts["example.com"].GetRoutes()
+
+	assert.Equal(t, len(routes), 2)
+}
+
+func TestDefaultRouteComesLast(t *testing.T) {
+	collection := NewVhostCollection()
+	fLabels := ServiceLabel{
+		Route: ServiceRoute{
+			Domain:       "example.com",
+			ExtraDomains: []string{},
+			PathPrefix:   "/",
+		},
+	}
+	bLabels := ServiceLabel{
+		Route: ServiceRoute{
+			Domain:       "example.com",
+			ExtraDomains: []string{},
+			PathPrefix:   "/api",
+		},
+	}
+
+	_ = collection.AddService("frontend", &fLabels)
+	_ = collection.AddService("backend", &bLabels)
+	routes := collection.Vhosts["example.com"].GetRoutes()
+
+	assert.Equal(t, routes[0].Match.PathSpecifier.(*route.RouteMatch_Prefix).Prefix, "/api")
+	assert.Equal(t, routes[1].Match.PathSpecifier.(*route.RouteMatch_Prefix).Prefix, "/")
 }
 
 func TestVhostDomainShouldBeUnique(t *testing.T) {

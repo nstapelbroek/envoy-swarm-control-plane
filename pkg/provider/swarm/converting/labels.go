@@ -18,7 +18,7 @@ type ServiceEndpoint struct {
 type ServiceRoute struct {
 	Domain       string
 	ExtraDomains []string // Note that you cannot assume that the domain or extraDomains are valid and reachable
-	Path         string
+	PathPrefix   string
 }
 
 type ServiceLabel struct {
@@ -46,7 +46,7 @@ func (l *ServiceLabel) setEndpointProp(property, value string) {
 func (l *ServiceLabel) setRouteProp(property, value string) {
 	switch strings.ToLower(property) {
 	case "path":
-		l.Route.Path = value
+		l.Route.PathPrefix = value
 	case "domain":
 		l.Route.Domain = value
 	case "extra-domains":
@@ -65,7 +65,7 @@ func NewServiceLabel() ServiceLabel {
 		},
 		ServiceRoute{
 			ExtraDomains: []string{},
-			Path:         "/",
+			PathPrefix:   "/",
 		},
 	}
 }

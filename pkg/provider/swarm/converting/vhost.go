@@ -53,7 +53,15 @@ func (w VhostCollection) AddService(clusterIdentifier string, labels *ServiceLab
 	// Validation ended above, applying changes
 	w.Vhosts[primaryDomain] = virtualHost
 	w.usedDomains[primaryDomain] = virtualHost
-	virtualHost.Routes = append(virtualHost.Routes, w.createRoute(clusterIdentifier, labels))
+
+	// Order of routes matter, ensure that the default catch-all / comes last
+	newRoute := w.createRoute(clusterIdentifier, labels)
+	if labels.Route.PathPrefix == "/" {
+		virtualHost.Routes = append(virtualHost.Routes, newRoute)
+	} else {
+		virtualHost.Routes = append([]*route.Route{newRoute}, virtualHost.Routes...)
+	}
+
 	for i := range extraDomains {
 		virtualHost.Domains = append(virtualHost.Domains, extraDomains[i])
 		w.usedDomains[extraDomains[i]] = virtualHost
@@ -67,7 +75,7 @@ func (w VhostCollection) createRoute(clusterIdentifier string, labels *ServiceLa
 		Name: clusterIdentifier + "_route",
 		Match: &route.RouteMatch{
 			PathSpecifier: &route.RouteMatch_Prefix{
-				Prefix: labels.Route.Path,
+				Prefix: labels.Route.PathPrefix,
 			},
 		},
 		Action: &route.Route_Route{

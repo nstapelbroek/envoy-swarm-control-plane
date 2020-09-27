@@ -10,7 +10,7 @@ import (
 func TestServiceLabelDefaults(t *testing.T) {
 	defaults := NewServiceLabel()
 
-	assert.Equal(t, defaults.Route.Path, "/")
+	assert.Equal(t, defaults.Route.PathPrefix, "/")
 	assert.Check(t, len(defaults.Route.ExtraDomains) == 0)
 	assert.Equal(t, defaults.Route.Domain, "")
 
