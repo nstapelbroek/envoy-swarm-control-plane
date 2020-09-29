@@ -18,6 +18,13 @@ func TestServiceLabelDefaults(t *testing.T) {
 	assert.Equal(t, defaults.Endpoint.Port, types.SocketAddress_PortValue{PortValue: 0})
 }
 
+func TestServiceLabelAutoPathPrefix(t *testing.T) {
+	label := NewServiceLabel()
+	label.setRouteProp("path", "api")
+
+	assert.Equal(t, label.Route.PathPrefix, "/api")
+}
+
 func TestServiceLabelInvalidDNS(t *testing.T) {
 	label := NewServiceLabel()
 	label.Endpoint.Port = types.SocketAddress_PortValue{PortValue: 80}

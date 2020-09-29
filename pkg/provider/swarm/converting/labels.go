@@ -2,6 +2,7 @@ package converting
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -46,7 +47,7 @@ func (l *ServiceLabel) setEndpointProp(property, value string) {
 func (l *ServiceLabel) setRouteProp(property, value string) {
 	switch strings.ToLower(property) {
 	case "path":
-		l.Route.PathPrefix = value
+		l.Route.PathPrefix = fmt.Sprintf("/%s", strings.TrimPrefix(value, "/"))
 	case "domain":
 		l.Route.Domain = value
 	case "extra-domains":
