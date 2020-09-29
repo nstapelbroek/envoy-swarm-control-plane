@@ -41,11 +41,11 @@ static_resources:
                       address: host.docker.internal
                       port_value: 9876
 
-    - name: control_plane_le
+    - name: control_plane_acme
       type: strict_dns
       connect_timeout: 5s
       load_assignment:
-        cluster_name: control_plane_le
+        cluster_name: control_plane_acme
         endpoints:
           - lb_endpoints:
               - endpoint:
