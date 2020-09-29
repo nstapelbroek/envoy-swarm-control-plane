@@ -45,11 +45,11 @@ func (l *ListenerBuilder) ProvideListeners(collection *converting.VhostCollectio
 	}
 
 	httpListener := httpBuilder.AddFilterChain(httpFilter).Build()
+	listeners = append(listeners, httpListener)
 	if err := httpListener.Validate(); err != nil {
 		return nil, err
 	}
 
-	listeners = append(listeners, httpBuilder.AddFilterChain(httpFilter).Build())
 	httpsListener := httpsBuilder.Build()
 	if len(httpsListener.FilterChains) == 0 {
 		// Returning a listener without filter chains does not work, guess we are only serving HTTP
