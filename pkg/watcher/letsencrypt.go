@@ -2,38 +2,41 @@ package watcher
 
 import (
 	"context"
-	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
-	"github.com/envoyproxy/go-control-plane/pkg/resource/v3"
+	"time"
+
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/acme"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/snapshot"
 )
 
+// LetsEncrypt is a poor man's interval trigger to issue any missing certificates at LetsEncrypt.
+// I tried hooking this up with gRPC server callbacks but that lead to a lot of coupling
+// between several control plane components. This is probably good enough for now :)
 type LetsEncrypt struct {
-	integration     *acme.Integration
-	snapshotStorage cache.ConfigWatcher
-	logger          logger.Logger
+	integration *acme.Integration
+	logger      logger.Logger
 }
 
-func ForMissingCertificates(integration *acme.Integration, snapshotStorage cache.ConfigWatcher, log logger.Logger) *LetsEncrypt {
+func ForNewCertificates(integration *acme.Integration, log logger.Logger) *LetsEncrypt {
 	return &LetsEncrypt{
-		integration:     integration,
-		snapshotStorage: snapshotStorage,
-		logger:          log,
+		integration: integration,
+		logger:      log,
 	}
 }
 
-func (s *LetsEncrypt) Start(ctx context.Context, dispatchChannel chan snapshot.UpdateReason) {
-	responseChannel, _ := s.snapshotStorage.CreateWatch(cache.Request{TypeUrl: resource.ListenerType, Node: &core.Node{Id: "letsencrypt-startup-watcher"}})
+func (l *LetsEncrypt) Start(ctx context.Context, dispatchChannel chan snapshot.UpdateReason) {
+	const UpdateInterval = 60
 
-	select {
-	case _ = <-responseChannel:
-		s.logger.Debugf("Snapshot storage has served configuration, (re) starting letEncrypt issuing")
-		if reloadRequired, _ := s.integration.IssueCertificates(); reloadRequired {
-			dispatchChannel <- "issuing LetsEncrypt certificates complete"
+	for {
+		select {
+		case <-time.After(UpdateInterval * time.Second):
+			l.logger.Debugf("LetsEncrypt issue interval tick")
+			if reloadRequired, _ := l.integration.IssueCertificates(); reloadRequired {
+				dispatchChannel <- "new LetsEncrypt certificate"
+			}
+		case <-ctx.Done():
+			l.logger.Debugf("Stopping certificate issuing")
+			return
 		}
-	case <-ctx.Done():
-		close(responseChannel)
 	}
 }

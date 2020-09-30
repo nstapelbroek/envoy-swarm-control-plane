@@ -1,8 +1,9 @@
 package converting
 
 import (
-	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"testing"
+
+	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 
 	"gotest.tools/assert"
 )

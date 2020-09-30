@@ -7,21 +7,20 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
+	streaming "github.com/envoyproxy/go-control-plane/pkg/server/v3"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/internal"
+	internalLogger "github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/acme"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/client"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls"
-	tlsstorage "github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls/storage"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/storage"
-
-	"github.com/nstapelbroek/envoy-swarm-control-plane/internal"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/snapshot"
-	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/watcher"
-
-	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
-	internalLogger "github.com/nstapelbroek/envoy-swarm-control-plane/internal/logger"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/swarm"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls"
+	tlsstorage "github.com/nstapelbroek/envoy-swarm-control-plane/pkg/provider/tls/storage"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/snapshot"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/storage"
+	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/watcher"
 )
 
 var (
@@ -83,23 +82,25 @@ func main() {
 		internalLogger.Instance().WithFields(logger.Fields{"area": "snapshot-manager"}),
 	)
 
-	events := createWatchers(main, snapshotStorage, acmeIntegration)
+	events := createWatchers(main, acmeIntegration)
 	go manager.Listen(events)
-	go internal.RunXDSServer(main, snapshotStorage, xdsPort)
+
+	grpcHandler := streaming.NewServer(context.Background(), snapshotStorage, nil)
+	go internal.RunXDSServer(main, grpcHandler, xdsPort)
 
 	waitForSignal(main)
 }
 
 // createWatchers will boot all background watchers that can cause an state update in the control plane
-func createWatchers(ctx context.Context, snapshotStorage cache.ConfigWatcher, acmeIntegration *acme.Integration) chan snapshot.UpdateReason {
+func createWatchers(ctx context.Context, acmeIntegration *acme.Integration) chan snapshot.UpdateReason {
 	UpdateEvents := make(chan snapshot.UpdateReason)
 	log := internalLogger.Instance().WithFields(logger.Fields{"area": "watcher"})
 
+	if acmeIntegration != nil {
+		go watcher.ForNewCertificates(acmeIntegration, log).Start(ctx, UpdateEvents)
+	}
 	go watcher.ForSwarmEvent(log).Start(ctx, UpdateEvents)
 	go watcher.CreateInitialStartupEvent(UpdateEvents)
-	if acmeIntegration != nil {
-		go watcher.ForMissingCertificates(acmeIntegration, snapshotStorage, log).Start(ctx, UpdateEvents)
-	}
 
 	return UpdateEvents
 }
@@ -122,12 +123,12 @@ func setupTLS() (sdsProvider provider.SDS, acmeIntegration *acme.Integration) {
 			certificateStorage,
 			internalLogger.Instance().WithFields(logger.Fields{"area": "acme"}),
 		)
-
 	}
 
 	return sdsProvider, acmeIntegration
 }
 
+// getStorage will configure the file with optional s3 extension
 func getStorage() storage.Storage {
 	disk := storage.NewDiskStorage(storagePath, internalLogger.Instance().WithFields(logger.Fields{"area": "disk"}))
 
