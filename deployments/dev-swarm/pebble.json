@@ -4,7 +4,7 @@
     "managementListenAddress": "0.0.0.0:15000",
     "certificate": "./certificates/pebble.pem",
     "privateKey": "./certificates/pebble.key",
-    "httpPort": null,
+    "httpPort": 80,
     "tlsPort": 443,
     "ocspResponderURL": "",
     "externalAccountBindingRequired": false
