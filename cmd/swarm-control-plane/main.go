@@ -26,8 +26,9 @@ import (
 var (
 	debug            bool
 	leTermsAccepted  bool
+	acmeLocal        bool
 	xdsPort          uint
-	acmePort         uint
+	acmePort         string
 	ingressNetwork   string
 	xdsClusterName   string
 	acmeClusterName  string
@@ -43,7 +44,7 @@ func init() {
 	// Required arguments with defaults shipped in the yaml
 	flag.StringVar(&storagePath, "storage-dir", "/etc/ssl/certs/le", "Local filesystem location where certificates are kept")
 	flag.UintVar(&xdsPort, "xds-port", 9876, "The port where envoy instances can connect to for configuration updates")
-	flag.UintVar(&acmePort, "acme-port", 8080, "The port where envoy will proxy lets encrypt HTTP-01 challenges towards")
+	flag.StringVar(&acmePort, "acme-port", "8080", "The port where envoy will proxy lets encrypt HTTP-01 challenges towards")
 	flag.StringVar(&ingressNetwork, "ingress-network", "edge-traffic", "The swarm network name or ID that all services share with the envoy instances")
 	flag.StringVar(&xdsClusterName, "xds-cluster", "control_plane", "Name of the cluster your envoy instances are contacting for ADS/SDS")
 	flag.StringVar(&acmeClusterName, "acme-cluster", "control_plane_acme", "Name of the cluster your envoy instances are proxying for ACME HTTP-01 challenges")
@@ -60,6 +61,7 @@ func init() {
 
 	// Remainder flags
 	flag.BoolVar(&debug, "debug", false, "Use debug logging")
+	flag.BoolVar(&acmeLocal, "acme-local", false, "Use a local acme server setup for development")
 }
 
 func main() {
@@ -108,24 +110,36 @@ func createWatchers(ctx context.Context, acmeIntegration *acme.Integration) chan
 // setupTLS will create an sds provider for sending tls certificates to clusters and an optional LetsEncrypt integration to issue new certificates
 func setupTLS() (sdsProvider provider.SDS, acmeIntegration *acme.Integration) {
 	fileStorage := getStorage()
-	certificateStorage := tlsstorage.Certificate{Storage: fileStorage}
+	certificateStorage := &tlsstorage.Certificate{Storage: fileStorage}
 	sdsProvider = tls.NewCertificateSecretsProvider(
 		xdsClusterName,
 		certificateStorage,
 		internalLogger.Instance().WithFields(logger.Fields{"area": "sds-provider"}),
 	)
 
-	if leTermsAccepted && acmeEmail != "" {
-		acmeIntegration = acme.NewIntegration(
-			acmeEmail,
-			acmeClusterName,
-			acmePort,
-			certificateStorage,
-			internalLogger.Instance().WithFields(logger.Fields{"area": "acme"}),
-		)
+	if !leTermsAccepted || acmeEmail == "" {
+		return sdsProvider, acmeIntegration
 	}
 
-	return sdsProvider, acmeIntegration
+	// Due to complexity with registration and persisting state, we'll use a builder to split init logic
+	acmeBuilder := client.NewAcmeBuilder(fileStorage).ForAccount(acmeEmail).WithHTTP01Challenge(acmePort)
+	if acmeLocal {
+		acmeBuilder.ForLocalDevelopment()
+	}
+
+	acmeClient, err := acmeBuilder.Build()
+	acmeLogger := internalLogger.Instance().WithFields(logger.Fields{"area": "acme"})
+	if err != nil {
+		acmeLogger.Warnf("ACME integration disabled due to an initialisation error: %s", err.Error())
+		return sdsProvider, acmeIntegration
+	}
+
+	return sdsProvider, acme.NewIntegration(
+		acmeClient,
+		acmeClusterName,
+		certificateStorage,
+		acmeLogger,
+	)
 }
 
 // getStorage will configure the file with optional s3 extension

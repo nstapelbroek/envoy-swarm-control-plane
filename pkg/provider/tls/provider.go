@@ -17,11 +17,11 @@ type CertificateSecretsProvider struct {
 	configSource          *core.ConfigSource
 	configKeyPrefix       string
 	requestedCertificates map[string]*route.VirtualHost
-	storage               storage.Certificate
+	storage               *storage.Certificate
 	logger                logger.Logger
 }
 
-func NewCertificateSecretsProvider(controlPlaneClusterName string, certificateStorage storage.Certificate, log logger.Logger) *CertificateSecretsProvider {
+func NewCertificateSecretsProvider(controlPlaneClusterName string, certificateStorage *storage.Certificate, log logger.Logger) *CertificateSecretsProvider {
 	// we can re-use the config source for all secrets so we initialize it once :)
 	c := &core.ConfigSource{
 		ResourceApiVersion: core.ApiVersion_V3,
