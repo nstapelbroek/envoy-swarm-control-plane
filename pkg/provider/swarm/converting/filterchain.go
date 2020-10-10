@@ -91,6 +91,7 @@ func (b *FilterChainBuilder) buildHTTPFilterForVhosts() *listener.Filter {
 func (b *FilterChainBuilder) buildDownstreamTransportSocket() *core.TransportSocket {
 	c := &auth.DownstreamTlsContext{
 		CommonTlsContext: &auth.CommonTlsContext{
+			AlpnProtocols:                  []string{"h2", "http/1.1"},
 			TlsCertificateSdsSecretConfigs: []*auth.SdsSecretConfig{b.sdsCertificateConfig},
 		},
 	}
