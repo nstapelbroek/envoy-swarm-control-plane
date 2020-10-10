@@ -8,12 +8,14 @@ todo: logo or small demo
 - Made for Docker Swarm 
   - Discovers service configuration without any additional software
   - Relies on swarms routing mesh (DNSRR or VIP) to proxy traffic to services
-  - Reads configuration from service labels
-  - Instantly detects changes in stack configurations
-- Automatic SSL/TLS certificates for each virtual host
-  - Supports bundeled domain names for a single certificate
-  - Redirect from HTTP to HTTPS
-- Enables you to route traffic via swarm worker nodes instead of a manager
+  - Reads configuration from deployment labels
+  - Instantly detects changes in stack configurations (results in no gateway errors when downscaling)
+  - Designed to run the Envoy proxies on worker nodes for more load balancing and availability 
+- SSL/TLS support
+  - Redirect HTTP to HTTPS automatically
+  - TLs enabled vhosts will offer HTTP/1.1 and HTTP/2  
+- LetsEncrypt integration
+  - For one or multiple (bundled) domains
 - Tries to play nice with system resources
 
 ## Getting started
