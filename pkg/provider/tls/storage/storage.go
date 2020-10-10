@@ -32,7 +32,5 @@ func (c *Certificate) GetCertificate(domain string, sans []string) (publicChain,
 		return nil, nil, err
 	}
 
-	// todo: in the future we need to think how we prevent expired certificates at this point
-
 	return publicChain, privateKey, err
 }

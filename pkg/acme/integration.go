@@ -55,7 +55,7 @@ func (i *Integration) PrepareVhostForIssuing(vhost *route.VirtualHost) *route.Vi
 
 	// See https://github.com/envoyproxy/envoy/issues/886, Host headers with a port value cause a mismatch
 	// Unsure if this happens in the wild, but to be sure I'll update the vhost domains
-	remappedDomains := make([]string, len(vhost.Domains)*2)
+	remappedDomains := make([]string, len(vhost.Domains)*2) //nolint:gomnd // it's twice the size of the original array
 	copy(remappedDomains, vhost.Domains)
 	for i := range vhost.Domains {
 		remappedDomains[len(vhost.Domains)+i] = fmt.Sprintf("%s:80", vhost.Domains[i])

@@ -14,11 +14,11 @@ import (
 )
 
 type CertificateSecretsProvider struct {
-	configSource          *core.ConfigSource
-	configKeyPrefix       string
-	requestedCertificates map[string]*route.VirtualHost
-	storage               *storage.Certificate
-	logger                logger.Logger
+	configSource     *core.ConfigSource
+	configKeyPrefix  string
+	requestedConfigs map[string]*route.VirtualHost
+	storage          *storage.Certificate
+	logger           logger.Logger
 }
 
 func NewCertificateSecretsProvider(controlPlaneClusterName string, certificateStorage *storage.Certificate, log logger.Logger) *CertificateSecretsProvider {
@@ -46,11 +46,11 @@ func NewCertificateSecretsProvider(controlPlaneClusterName string, certificateSt
 	}
 
 	return &CertificateSecretsProvider{
-		configSource:          c,
-		configKeyPrefix:       "downstream_tls_",
-		requestedCertificates: make(map[string]*route.VirtualHost),
-		storage:               certificateStorage,
-		logger:                log,
+		configSource:     c,
+		configKeyPrefix:  "downstream_tls_",
+		requestedConfigs: make(map[string]*route.VirtualHost),
+		storage:          certificateStorage,
+		logger:           log,
 	}
 }
 
@@ -62,7 +62,7 @@ func (p *CertificateSecretsProvider) HasCertificate(vhost *route.VirtualHost) bo
 // GetCertificateConfig will register vhost in the SDS mapping, assuring that the secrets will be available
 func (p *CertificateSecretsProvider) GetCertificateConfig(vhost *route.VirtualHost) *auth.SdsSecretConfig {
 	key := p.getSecretConfigKey(vhost)
-	p.requestedCertificates[key] = vhost
+	p.requestedConfigs[key] = vhost
 
 	return &auth.SdsSecretConfig{
 		Name:      key,
@@ -70,13 +70,14 @@ func (p *CertificateSecretsProvider) GetCertificateConfig(vhost *route.VirtualHo
 	}
 }
 
-func (p *CertificateSecretsProvider) Provide(ctx context.Context) (secrets []types.Resource, err error) {
-	for sdsKey := range p.requestedCertificates {
-		vhost := p.requestedCertificates[sdsKey]
+func (p *CertificateSecretsProvider) Provide(_ context.Context) (secrets []types.Resource, err error) {
+	for sdsKey := range p.requestedConfigs {
+		vhost := p.requestedConfigs[sdsKey]
 
 		// Assume that certificates are just there, no snake-oil fallback at this moment
 		publicChain, privateKey, err := p.getCertificateFromStorage(vhost)
 		if err != nil {
+			p.logger.Warnf("promised certificate for %s is suddenly gone", sdsKey)
 			continue
 		}
 
@@ -103,12 +104,12 @@ func (p *CertificateSecretsProvider) getSecretConfigKey(vhost *route.VirtualHost
 }
 
 func (p *CertificateSecretsProvider) getCertificateFromStorage(vhost *route.VirtualHost) ([]byte, []byte, error) {
-	// We will use the first domain in the slice as the primary domain name
-	// conveniently this happens to to match the way we parse labels @see TestVhostPrimaryDomainIsFirstInDomains
+	// First domain in the array is the primary one @see TestVhostPrimaryDomainIsFirstInDomains
 	domains := vhost.GetDomains()
 	if len(domains) == 0 {
 		return nil, nil, errors.New("vhost contains no domains")
 	}
 
+	// todo: check if the certificate is usable (still valid). Don't assume ACME integration here, just simply validate
 	return p.storage.GetCertificate(vhost.GetDomains()[0], vhost.GetDomains())
 }
