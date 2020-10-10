@@ -9,8 +9,8 @@ todo: logo or small demo
   - Discovers service configuration without any additional software
   - Relies on swarms routing mesh (DNSRR or VIP) to proxy traffic to services
   - Reads configuration from deployment labels
-  - Instantly detects changes in stack configurations (results in no gateway errors when downscaling)
-  - Designed to run the Envoy proxies on worker nodes for more load balancing and availability 
+  - Instantly detects changes in stack configurations
+  - Designed to run with Envoy proxies on worker nodes, so you'll have options to replicate your edge proxies
 - SSL/TLS support
   - Redirect HTTP to HTTPS automatically
   - TLs enabled vhosts will offer HTTP/1.1 and HTTP/2  
