@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/go-acme/lego/v4/certificate"
+
 	"github.com/go-acme/lego/v4/lego"
 
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
@@ -14,7 +16,7 @@ import (
 type Integration struct {
 	acmeClient      *lego.Client
 	acmeClusterName string
-	issueBacklog    [][]string
+	issueBacklog    map[string][]string
 	mutex           sync.Mutex
 	certStorage     *tlsstorage.Certificate
 	logger          logger.Logger
@@ -24,20 +26,14 @@ func NewIntegration(client *lego.Client, cluster string, certStorage *tlsstorage
 	return &Integration{
 		acmeClient:      client,
 		acmeClusterName: cluster,
-		issueBacklog:    [][]string{},
+		issueBacklog:    make(map[string][]string),
 		certStorage:     certStorage,
 		logger:          log,
 	}
 }
 
-// PrepareVhostForIssuing will register and prepare the vhost for an ACME challenge
-// note that the actual issuing is async
+// PrepareVhostForIssuing will add the vhost to the issue backlog and update the vhost config for any ACME challenge
 func (i *Integration) PrepareVhostForIssuing(vhost *route.VirtualHost) *route.VirtualHost {
-	i.mutex.Lock()
-	i.issueBacklog = append(i.issueBacklog, vhost.Domains)
-	i.mutex.Unlock()
-
-	// Prepend .well-known matcher
 	vhost.Routes = append([]*route.Route{{
 		Name: "acme_http01_route",
 		Match: &route.RouteMatch{
@@ -54,19 +50,32 @@ func (i *Integration) PrepareVhostForIssuing(vhost *route.VirtualHost) *route.Vi
 		},
 	}}, vhost.Routes...)
 
-	// See https://github.com/envoyproxy/envoy/issues/886, clients using a port in their host header causes a mismatch
-	// Unsure if this happens in the wild, but for local ACME testing I'll add the domains with port to
-	// help requests find their way to the challenge server
+	// Prevent waiting for IssueCertificates() to complete
+	go i.addToIssueBacklog(vhost.Domains)
+
+	// See https://github.com/envoyproxy/envoy/issues/886, Host headers with a port value cause a mismatch
+	// Unsure if this happens in the wild, but to be sure I'll update the vhost domains
 	remappedDomains := make([]string, len(vhost.Domains)*2)
 	copy(remappedDomains, vhost.Domains)
 	for i := range vhost.Domains {
 		remappedDomains[len(vhost.Domains)+i] = fmt.Sprintf("%s:80", vhost.Domains[i])
 	}
-	vhost.Domains = remappedDomains
 
-	i.logger.WithFields(logger.Fields{"vhost": vhost.Name}).Debugf("Queued certificate issuing for vhost")
+	vhost.Domains = remappedDomains
+	i.logger.WithFields(logger.Fields{"vhost": vhost.Name}).Debugf("vhost configured for ACME issuing")
 
 	return vhost
+}
+
+func (i *Integration) addToIssueBacklog(domains []string) {
+	backlogKey := domains[0] // @see TestVhostPrimaryDomainIsFirstInDomains
+	if _, exists := i.issueBacklog[backlogKey]; exists {
+		return
+	}
+
+	i.mutex.Lock()
+	i.issueBacklog[backlogKey] = domains
+	i.mutex.Unlock()
 }
 
 func (i *Integration) IssueCertificates() (reloadRequired bool, err error) {
@@ -74,18 +83,27 @@ func (i *Integration) IssueCertificates() (reloadRequired bool, err error) {
 		return false, nil
 	}
 
-	// todo this is where i left off
-	//for index := range i.issueBacklog {
-	//	domains := i.issueBacklog[index]
-	//	publicChain, privateKey, err := i.acmeClient.issueCertificate(i.issueBacklog[i])
-	//	if err != nil {
-	//		i.logger.Errorf(err.Error())
-	//		continue
-	//	}
-	//
-	//	_ = i.certStorage.PutCertificate(domains[0], domains, publicChain, privateKey)
-	//	reloadRequired = true
-	//}
+	// Prevent edge cases by locking our data
+	i.mutex.Lock()
+	for primaryDomain := range i.issueBacklog {
+		domains := i.issueBacklog[primaryDomain]
+
+		request := certificate.ObtainRequest{Domains: domains, Bundle: true}
+		certs, err := i.acmeClient.Certificate.Obtain(request)
+		if err != nil {
+			i.logger.Errorf("failed issuing certificate: %s", err.Error())
+			delete(i.issueBacklog, primaryDomain)
+			continue
+		}
+
+		if err = i.certStorage.PutCertificate(domains[0], domains, certs.Certificate, certs.PrivateKey); err != nil {
+			i.logger.Errorf("failed saving certificate to storage: %s", err.Error())
+		}
+
+		delete(i.issueBacklog, primaryDomain)
+		reloadRequired = true
+	}
+	i.mutex.Unlock()
 
 	return reloadRequired, err
 }

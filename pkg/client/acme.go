@@ -50,23 +50,22 @@ func (a *AcmeClientBuilder) Build() (*lego.Client, error) {
 		account.SetNewPrivateKey()
 	}
 
+	// lego.NewConfig will read the LEGO_CA_CERTIFICATES, so it needs to be set before
+	if a.forLocalDevelopment && os.Getenv("LEGO_CA_CERTIFICATES") == "" {
+		_ = os.Setenv("LEGO_CA_CERTIFICATES", fmt.Sprintf(
+			"%s/%s/%s.pem",
+			os.Getenv("GOPATH"),
+			"src/github.com/nstapelbroek/envoy-swarm-control-plane",
+			"deployments/dev-swarm/certificates/pebble",
+		))
+	}
+
 	config := lego.NewConfig(account)
 
-	// Opinionated spaghetti for local development, must be initialised early because of potential registration
 	// @see deployments/dev-swarm/readme.md
 	if a.forLocalDevelopment {
-		config.CADirURL = "http://pebble:4000/directory"
+		config.CADirURL = "https://pebble:14000/dir"
 		config.Certificate.KeyType = certcrypto.RSA2048
-
-		if os.Getenv("LEGO_CA_CERTIFICATES") == "" {
-			// lego reads this env when building a client
-			_ = os.Setenv("LEGO_CA_CERTIFICATES", fmt.Sprintf(
-				"%s/%s/%s.pem",
-				os.Getenv("GOPATH"),
-				"src/github.com/nstapelbroek/envoy-swarm-control-plane",
-				"deployments/dev-swarm/certificates/pebble",
-			))
-		}
 	}
 
 	client, err := lego.NewClient(config)
