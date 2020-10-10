@@ -1,9 +1,9 @@
 ## What is this? 
 Envoy Swarm Control Plane is a piece of software that's designed to run inside a Docker Swarm environment.
-It will read swarm service definitions and convert them to configuration objects that Envoy loadbalancers can use.
+It will read swarm service definitions and convert them to configuration objects that Envoy proxies can use.
 
-It's designed to work with proxies at the edge, meaning it's focus is more on serving clients 
-rather than facilitating in service-to-service communication. 
+It's designed with the intent to run envoy at the edge, meaning it's focus is more on serving external clients rather
+than facilitating in service-to-service communication. 
 
 ## Getting started
 

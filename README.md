@@ -1,9 +1,20 @@
 # Envoy Swarm Control Plane
-Opinionated control plane software that enables Envoy as an edge proxy in a docker swarm cluster.
+Opinionated control plane software that enables virtual hosting in docker swarm by using Envoy as an edge proxy.
 
 todo: logo or small demo
 
-todo: add feature list, the problem it solves and what it enables
+## Features
+
+- Made for Docker Swarm 
+  - Discovers service configuration without any additional software
+  - Relies on swarms routing mesh (DNSRR or VIP) to proxy traffic to services
+  - Reads configuration from service labels
+  - Instantly detects changes in stack configurations
+- Automatic SSL/TLS certificates for each virtual host
+  - Supports bundeled domain names for a single certificate
+  - Redirect from HTTP to HTTPS
+- Enables you to route traffic via swarm worker nodes instead of a manager
+- Tries to play nice with system resources
 
 ## Getting started
 Use the [docs](docs/introduction.md) to learn more.
