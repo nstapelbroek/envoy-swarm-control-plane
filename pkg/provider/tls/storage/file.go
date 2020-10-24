@@ -8,10 +8,10 @@ import (
 	"strings"
 )
 
-// We'll use .pem and .key files to store our certificates, keeping it close to the RFCs 1421 through 1424
+// We'll use .pem and .key files to store our certificate and private key, trying to play nice with x509 standards
+// Note that this storage doesn't know anything about the encoding and merely exists to write bytes to disk
 const CertificateExtension = "pem"
 const PrivateKeyExtension = "key"
-const CertificateFileMode = 0600
 
 // getCertificateFilename contains the business logic for generating consistent certificate file names
 func getCertificateFilename(primaryDomain string, sans []string) string {
