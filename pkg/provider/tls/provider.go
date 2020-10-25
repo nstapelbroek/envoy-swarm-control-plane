@@ -55,7 +55,7 @@ func NewCertificateSecretsProvider(controlPlaneClusterName string, certificateSt
 }
 
 func (p *CertificateSecretsProvider) HasCertificate(vhost *route.VirtualHost) bool {
-	_, _, err := p.getCertificateFromStorage(vhost)
+	_, _, err := p.getCertificate(vhost)
 	return err == nil
 }
 
@@ -75,7 +75,7 @@ func (p *CertificateSecretsProvider) Provide(_ context.Context) (secrets []types
 		vhost := p.requestedConfigs[sdsKey]
 
 		// Assume that certificates are just there, no snake-oil fallback at this moment
-		publicChain, privateKey, err := p.getCertificateFromStorage(vhost)
+		publicChain, privateKey, err := p.getCertificate(vhost)
 		if err != nil {
 			p.logger.Warnf("promised certificate for %s is suddenly gone", sdsKey)
 			continue
@@ -103,6 +103,22 @@ func (p *CertificateSecretsProvider) getSecretConfigKey(vhost *route.VirtualHost
 	return p.configKeyPrefix + strings.ToLower(vhost.Name)
 }
 
+// getCertificate retrieves a certificate from storage and does extra validations to assure that it's usable
+func (p *CertificateSecretsProvider) getCertificate(vhost *route.VirtualHost) ([]byte, []byte, error) {
+	certBytes, keyBytes, err := p.getCertificateFromStorage(vhost)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Poor mans approach for validating as we do not validate the cert and key together
+	if err := validatePublicCertificate(certBytes); err != nil {
+		p.logger.Infof("validating certificate failed: %", err.Error())
+		return nil, nil, err
+	}
+
+	return certBytes, keyBytes, err
+}
+
 func (p *CertificateSecretsProvider) getCertificateFromStorage(vhost *route.VirtualHost) ([]byte, []byte, error) {
 	// First domain in the array is the primary one @see TestVhostPrimaryDomainIsFirstInDomains
 	domains := vhost.GetDomains()
@@ -110,6 +126,5 @@ func (p *CertificateSecretsProvider) getCertificateFromStorage(vhost *route.Virt
 		return nil, nil, errors.New("vhost contains no domains")
 	}
 
-	// todo: check if the certificate is usable (still valid). Don't assume ACME integration here, just simply validate
 	return p.storage.GetCertificate(vhost.GetDomains()[0], vhost.GetDomains())
 }
