@@ -1,0 +1,31 @@
+version: '3.7'
+services:
+  frontend:
+    image: nstapelbroek/static-webserver:3
+    deploy:
+      replicas: 2
+      labels:
+        - envoy.endpoint.protocol=tcp # default, other option: udp
+        - envoy.endpoint.port=80 # required, only one port per service atm though
+        - envoy.route.domain=example.com # required
+        - envoy.route.extra-domains=www.example.com,new.example.com,frontend.example.com # optional
+        - envoy.route.path=/ # default
+    networks:
+      - edge-traffic
+
+  api:
+    image: containous/whoami:latest
+    deploy:
+      replicas: 2
+      labels:
+        - envoy.endpoint.port=80
+        - envoy.route.domain=example.com
+        - envoy.route.path=/api
+    networks:
+      - edge-traffic
+
+networks:
+  edge-traffic:
+    external: true
+  host:
+    external: true
