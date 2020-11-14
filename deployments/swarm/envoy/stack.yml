@@ -2,6 +2,14 @@ version: '3.7'
 services:
   control-plane:
     image: nstapelbroek/envoy-swarm-control-plane:0.15
+    command:
+      - --ingress-network
+      - edge-traffic
+      - --storage-dir
+      - /etc/ssl/certs/
+      - --acme-email
+      - replaceme@example.com
+      # - --acme-accept-terms
     deploy:
       replicas: 1
       placement:
@@ -11,11 +19,7 @@ services:
         condition: any
         window: 10s
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command:
-      - --debug
-      - --storage-dir
-      - /tmp/
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
   lb:
     image: nstapelbroek/envoy-edge:0.15

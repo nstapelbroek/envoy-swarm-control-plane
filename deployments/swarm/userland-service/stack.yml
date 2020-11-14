@@ -27,5 +27,3 @@ services:
 networks:
   edge-traffic:
     external: true
-  host:
-    external: true
