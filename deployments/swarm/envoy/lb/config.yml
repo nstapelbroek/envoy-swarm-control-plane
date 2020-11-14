@@ -1,0 +1,48 @@
+dynamic_resources:
+  ads_config:
+    api_type: GRPC
+    transport_api_version: V3
+    grpc_services:
+      - envoy_grpc:
+          cluster_name: control_plane
+
+  cds_config:
+    ads: {}
+    resource_api_version: V3
+
+  lds_config:
+    ads: {}
+    resource_api_version: V3
+
+node:
+  cluster: edge
+  id: default-node
+
+static_resources:
+  clusters:
+    - name: control_plane
+      type: strict_dns
+      connect_timeout: 5s
+      http2_protocol_options: {}
+      load_assignment:
+        cluster_name: control_plane
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: control-plane
+                      port_value: 9876
+
+    - name: control_plane_acme
+      type: strict_dns
+      connect_timeout: 5s
+      load_assignment:
+        cluster_name: control_plane_acme
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: control-plane
+                      port_value: 8080
