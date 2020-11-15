@@ -20,7 +20,7 @@ deploy-services:
 
 .PHONY: run-envoy
 run-envoy:
-	@getenvoy run standard:$(ENVOY_VERSION) -- --config-path $(CURDIR)/envoy/config.yaml --log-level debug
+	@sudo getenvoy run standard:$(ENVOY_VERSION) -- --config-path $(CURDIR)/envoy/config.yaml --log-level debug
 
 .PHONY: run-pebble
 run-pebble:
