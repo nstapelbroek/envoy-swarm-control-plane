@@ -1,4 +1,5 @@
 DOCKER_NETWORK_NAME = edge-traffic
+ENVOY_SERVICE_NAME = envoy
 DOCKER_NETWORK_ID = $(shell docker network ls -q -f name=$(DOCKER_NETWORK_NAME))
 USERLAND_STACKS := $(wildcard stacks/*.yml)
 ENVOY_VERSION = 1.15.1
@@ -10,6 +11,10 @@ endif
 cleanup:
 	$(info removing demo services)
 	$(foreach f, $(USERLAND_STACKS), @docker stack rm $(basename $(notdir $f));)
+	$(info removing pebble)
+	@docker service rm pebble
+	$(info removing envoy)
+	@docker service rm enovy
 	$(info removing network)
 	@docker network rm $(DOCKER_NETWORK_NAME)
 
@@ -20,11 +25,13 @@ deploy-services:
 
 .PHONY: run-envoy
 run-envoy:
-	@sudo getenvoy run standard:$(ENVOY_VERSION) -- --config-path $(CURDIR)/envoy/config.yaml --log-level debug
+	@docker image build --tag nstapelbroek/envoy-edge:dev $(CURDIR)/envoy
+	@docker service create --name envoy --publish published=80,target=80,mode=host --publish published=443,target=443,mode=host --publish published=10000,target=10000,mode=host --network $(DOCKER_NETWORK_NAME) nstapelbroek/envoy-edge:dev
 
 .PHONY: run-pebble
 run-pebble:
-	@pebble -config $(CURDIR)/pebble/config.json
+	@docker image build --tag nstapelbroek/pebble:dev $(CURDIR)/pebble
+	@docker service create --name pebble --publish 14000:14000 --publish 15000:14000 --network $(DOCKER_NETWORK_NAME) nstapelbroek/pebble:dev
 
 .PHONY: run
-run: deploy-services run-envoy run-pebble
+run: run-envoy run-pebble deploy-services

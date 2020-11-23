@@ -1,21 +1,26 @@
 # Local development environment
 
-Tools and setup instructions for developing on a local unix / macos machine. We're going
-to run almost exclusively on the host except for some demo swarm services.
+Tools and setup instructions for developing on a local linux machine. We're going
+to run almost everything in containers to simulate a production setup as close as possible.
 
-Furthermore, this setup is packed/opinionated with:
+Furthermore, this setup is packed with:
 
+- Envoy 15
+  - Configured to run the Admin interface at localhost:10000
+  - Configured to call an XDS server at localhost:9876
+  - Configured to proxy pass ACME challenges to localhost:8080
+- [Pebble](https://github.com/letsencrypt/pebble)
+  - ACME running on port [14000](https://0.0.0.0:14000/dir)
+  - Management running on [15000](https://0.0.0.0:15000/)
+  - CA certificate is taken from https://github.com/letsencrypt/pebble/blob/master/test/certs/localhost/cert.pem
 - A self-signed certificate for `example.com,www.example.com,new.example.com,frontend.example.com`
-- Pebble config with CA certificate and Key, copied from https://github.com/letsencrypt/pebble/blob/master/test/certs/localhost/cert.pem
-- Envoy configuration that will call "a control plane" at localhost:9000
+
 
 ## Requirements
 
 - [Golang](https://golang.org/doc/install) for developing. Use at least go 1.13 or up for less headache with gomodules
 - [Docker, running as a swarm manager](https://docs.docker.com/engine/reference/commandline/swarm_init/) reachable via `/var/run/docker.sock` 
-- [Pebble](https://github.com/letsencrypt/pebble#install) for issuing certificates
-- [GetEnvoy](https://www.getenvoy.io/install/) to run the Envoy proxy
-- [Make](https://www.gnu.org/software/make/) to automate some setup and teardown
+- [Make](https://www.gnu.org/software/make/) to automate some setup and teardown  
 
 ### Getting started
 
