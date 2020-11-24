@@ -2,6 +2,9 @@ package converting
 
 import (
 	"fmt"
+	"time"
+
+	"github.com/golang/protobuf/ptypes/wrappers"
 
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
@@ -60,6 +63,12 @@ func (b *FilterChainBuilder) Build() *listener.FilterChain {
 }
 
 func (b *FilterChainBuilder) buildHTTPFilterForVhosts() *listener.Filter {
+	const HTTPIdleTimeout = 1 * time.Hour
+	const RequestTimeout = 5 * time.Minute
+	const MaxConcurrentHTTP2Streams = 100
+	const InitialDownstreamHTTP2StreamWindowSize = 65536       // 64 KiB
+	const InitialDownstreamHTTP2ConnectionWindowSize = 1048576 // 1 MiB
+
 	routeType := "http"
 	if b.configureTLS {
 		routeType = "https"
@@ -70,10 +79,22 @@ func (b *FilterChainBuilder) buildHTTPFilterForVhosts() *listener.Filter {
 		VirtualHosts: b.vhosts,
 	}
 	conManager := &hcm.HttpConnectionManager{
-		CodecType:      hcm.HttpConnectionManager_AUTO,
-		StatPrefix:     b.name,
-		RouteSpecifier: &hcm.HttpConnectionManager_RouteConfig{RouteConfig: routes},
-		HttpFilters:    []*hcm.HttpFilter{{Name: "envoy.filters.http.router"}},
+		CodecType:        hcm.HttpConnectionManager_AUTO,
+		StatPrefix:       b.name,
+		UseRemoteAddress: &wrappers.BoolValue{Value: true},
+		RouteSpecifier:   &hcm.HttpConnectionManager_RouteConfig{RouteConfig: routes},
+		HttpFilters:      []*hcm.HttpFilter{{Name: "envoy.filters.http.router"}},
+		CommonHttpProtocolOptions: &core.HttpProtocolOptions{
+			IdleTimeout:                  ptypes.DurationProto(HTTPIdleTimeout),
+			HeadersWithUnderscoresAction: core.HttpProtocolOptions_REJECT_REQUEST,
+		},
+		Http2ProtocolOptions: &core.Http2ProtocolOptions{
+			MaxConcurrentStreams:        &wrappers.UInt32Value{Value: uint32(MaxConcurrentHTTP2Streams)},
+			InitialStreamWindowSize:     &wrappers.UInt32Value{Value: uint32(InitialDownstreamHTTP2StreamWindowSize)},
+			InitialConnectionWindowSize: &wrappers.UInt32Value{Value: uint32(InitialDownstreamHTTP2ConnectionWindowSize)},
+		},
+		StreamIdleTimeout: ptypes.DurationProto(RequestTimeout),
+		RequestTimeout:    ptypes.DurationProto(RequestTimeout),
 	}
 	managerConfig, err := ptypes.MarshalAny(conManager)
 	if err != nil {
