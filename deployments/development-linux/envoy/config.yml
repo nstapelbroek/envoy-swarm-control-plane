@@ -1,3 +1,22 @@
+overload_manager:
+  refresh_interval: 0.25s
+  resource_monitors:
+    - name: "envoy.resource_monitors.fixed_heap"
+      typed_config:
+        "@type": type.googleapis.com/envoy.config.resource_monitor.fixed_heap.v2alpha.FixedHeapConfig
+        max_heap_size_bytes: 512000000 # 512MB
+  actions:
+    - name: "envoy.overload_actions.shrink_heap"
+      triggers:
+        - name: "envoy.resource_monitors.fixed_heap"
+          threshold:
+            value: 0.95
+    - name: "envoy.overload_actions.stop_accepting_requests"
+      triggers:
+        - name: "envoy.resource_monitors.fixed_heap"
+          threshold:
+            value: 0.98
+
 admin:
   access_log_path: /dev/null
   address:
