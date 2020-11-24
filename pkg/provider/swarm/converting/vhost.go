@@ -2,6 +2,8 @@ package converting
 
 import (
 	"fmt"
+	"github.com/golang/protobuf/ptypes"
+	"time"
 
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 )
@@ -71,6 +73,7 @@ func (w VhostCollection) AddService(clusterIdentifier string, labels *ServiceLab
 }
 
 func (w VhostCollection) createRoute(clusterIdentifier string, labels *ServiceLabel) *route.Route {
+	const RouteIdleTimeout = 15 * time.Second
 	return &route.Route{
 		Name: clusterIdentifier + "_route",
 		Match: &route.RouteMatch{
@@ -83,6 +86,7 @@ func (w VhostCollection) createRoute(clusterIdentifier string, labels *ServiceLa
 				ClusterSpecifier: &route.RouteAction_Cluster{
 					Cluster: clusterIdentifier,
 				},
+				IdleTimeout: ptypes.DurationProto(RouteIdleTimeout),
 			},
 		},
 	}
