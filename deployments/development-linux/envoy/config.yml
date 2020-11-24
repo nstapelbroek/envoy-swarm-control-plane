@@ -1,3 +1,10 @@
+admin:
+  access_log_path: /dev/null
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 10000
+
 dynamic_resources:
   ads_config:
     api_type: GRPC
@@ -15,8 +22,8 @@ dynamic_resources:
     resource_api_version: V3
 
 node:
-  cluster: edge
-  id: default-node
+  cluster: local-development
+  id: test-id
 
 static_resources:
   clusters:
@@ -31,7 +38,7 @@ static_resources:
               - endpoint:
                   address:
                     socket_address:
-                      address: control-plane
+                      address: docker.host.internal
                       port_value: 9876
 
     - name: control_plane_acme
@@ -44,5 +51,5 @@ static_resources:
               - endpoint:
                   address:
                     socket_address:
-                      address: control-plane
+                      address: docker.host.internal
                       port_value: 8080

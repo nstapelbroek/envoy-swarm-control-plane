@@ -1,9 +1,21 @@
-admin:
-  access_log_path: /dev/null
-  address:
-    socket_address:
-      address: 0.0.0.0
-      port_value: 19000
+overload_manager:
+  refresh_interval: 0.25s
+  resource_monitors:
+    - name: "envoy.resource_monitors.fixed_heap"
+      typed_config:
+        "@type": type.googleapis.com/envoy.config.resource_monitor.fixed_heap.v2alpha.FixedHeapConfig
+        max_heap_size_bytes: 512000000 # 512MB
+  actions:
+    - name: "envoy.overload_actions.shrink_heap"
+      triggers:
+        - name: "envoy.resource_monitors.fixed_heap"
+          threshold:
+            value: 0.95
+    - name: "envoy.overload_actions.stop_accepting_requests"
+      triggers:
+        - name: "envoy.resource_monitors.fixed_heap"
+          threshold:
+            value: 0.98
 
 dynamic_resources:
   ads_config:
@@ -22,8 +34,8 @@ dynamic_resources:
     resource_api_version: V3
 
 node:
-  cluster: local-dev-swarm
-  id: test-id
+  cluster: edge
+  id: default-node
 
 static_resources:
   clusters:
@@ -38,7 +50,7 @@ static_resources:
               - endpoint:
                   address:
                     socket_address:
-                      address: host.docker.internal
+                      address: control-plane
                       port_value: 9876
 
     - name: control_plane_acme
@@ -51,5 +63,12 @@ static_resources:
               - endpoint:
                   address:
                     socket_address:
-                      address: host.docker.internal
+                      address: control-plane
                       port_value: 8080
+
+layered_runtime:
+  layers:
+    - name: static_layer_0
+      static_layer:
+        overload:
+          global_downstream_max_connections: 10000
