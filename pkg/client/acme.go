@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"github.com/go-acme/lego/v4/certcrypto"
 	"github.com/go-acme/lego/v4/challenge/http01"
 	"github.com/go-acme/lego/v4/lego"
@@ -9,7 +8,6 @@ import (
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/acme"
 	astorage "github.com/nstapelbroek/envoy-swarm-control-plane/pkg/acme/storage"
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/storage"
-	"os"
 )
 
 type AcmeClientBuilder struct {
@@ -49,21 +47,11 @@ func (a *AcmeClientBuilder) Build() (*lego.Client, error) {
 		account.SetNewPrivateKey()
 	}
 
-	// lego.NewConfig will read the LEGO_CA_CERTIFICATES, so it needs to be set before
-	if a.forLocalDevelopment && os.Getenv("LEGO_CA_CERTIFICATES") == "" {
-		_ = os.Setenv("LEGO_CA_CERTIFICATES", fmt.Sprintf(
-			"%s/%s/%s",
-			os.Getenv("GOPATH"),
-			"src/github.com/nstapelbroek/envoy-swarm-hostmode-control-plane",
-			"deployments/development-host/pebble/ca.pem",
-		))
-	}
-
 	config := lego.NewConfig(account)
 
-	// @see deployments/development-host/readme.md
+	// @see deployments/development-linux/readme.md
 	if a.forLocalDevelopment {
-		config.CADirURL = "https://localhost:14000/dir"
+		config.CADirURL = "https://127.0.0.1:14000/dir"
 		config.Certificate.KeyType = certcrypto.RSA2048
 	}
 
