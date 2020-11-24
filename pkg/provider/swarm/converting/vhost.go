@@ -2,8 +2,9 @@ package converting
 
 import (
 	"fmt"
-	"github.com/golang/protobuf/ptypes"
 	"time"
+
+	"github.com/golang/protobuf/ptypes"
 
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 )

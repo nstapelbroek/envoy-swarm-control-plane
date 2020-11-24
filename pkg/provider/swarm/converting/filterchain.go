@@ -2,8 +2,9 @@ package converting
 
 import (
 	"fmt"
-	"github.com/golang/protobuf/ptypes/wrappers"
 	"time"
+
+	"github.com/golang/protobuf/ptypes/wrappers"
 
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
@@ -62,11 +63,11 @@ func (b *FilterChainBuilder) Build() *listener.FilterChain {
 }
 
 func (b *FilterChainBuilder) buildHTTPFilterForVhosts() *listener.Filter {
-	const HttpIdleTimeout = 1 * time.Hour
+	const HTTPIdleTimeout = 1 * time.Hour
 	const RequestTimeout = 5 * time.Minute
-	const MaxConcurrentHttp2Streams = 100
-	const InitialDownstreamHttp2StreamWindowSize = 65536       // 64 KiB
-	const InitialDownstreamHttp2ConnectionWindowSize = 1048576 // 1 MiB
+	const MaxConcurrentHTTP2Streams = 100
+	const InitialDownstreamHTTP2StreamWindowSize = 65536       // 64 KiB
+	const InitialDownstreamHTTP2ConnectionWindowSize = 1048576 // 1 MiB
 
 	routeType := "http"
 	if b.configureTLS {
@@ -84,13 +85,13 @@ func (b *FilterChainBuilder) buildHTTPFilterForVhosts() *listener.Filter {
 		RouteSpecifier:   &hcm.HttpConnectionManager_RouteConfig{RouteConfig: routes},
 		HttpFilters:      []*hcm.HttpFilter{{Name: "envoy.filters.http.router"}},
 		CommonHttpProtocolOptions: &core.HttpProtocolOptions{
-			IdleTimeout:                  ptypes.DurationProto(HttpIdleTimeout),
+			IdleTimeout:                  ptypes.DurationProto(HTTPIdleTimeout),
 			HeadersWithUnderscoresAction: core.HttpProtocolOptions_REJECT_REQUEST,
 		},
 		Http2ProtocolOptions: &core.Http2ProtocolOptions{
-			MaxConcurrentStreams:        &wrappers.UInt32Value{Value: uint32(MaxConcurrentHttp2Streams)},
-			InitialStreamWindowSize:     &wrappers.UInt32Value{Value: uint32(InitialDownstreamHttp2StreamWindowSize)},
-			InitialConnectionWindowSize: &wrappers.UInt32Value{Value: uint32(InitialDownstreamHttp2ConnectionWindowSize)},
+			MaxConcurrentStreams:        &wrappers.UInt32Value{Value: uint32(MaxConcurrentHTTP2Streams)},
+			InitialStreamWindowSize:     &wrappers.UInt32Value{Value: uint32(InitialDownstreamHTTP2StreamWindowSize)},
+			InitialConnectionWindowSize: &wrappers.UInt32Value{Value: uint32(InitialDownstreamHTTP2ConnectionWindowSize)},
 		},
 		StreamIdleTimeout: ptypes.DurationProto(RequestTimeout),
 		RequestTimeout:    ptypes.DurationProto(RequestTimeout),
