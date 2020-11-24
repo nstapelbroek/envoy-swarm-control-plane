@@ -72,3 +72,10 @@ static_resources:
                     socket_address:
                       address: docker.host.internal
                       port_value: 8080
+
+layered_runtime:
+  layers:
+    - name: static_layer_0
+      static_layer:
+        overload:
+          global_downstream_max_connections: 10000
