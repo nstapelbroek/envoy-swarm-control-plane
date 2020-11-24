@@ -52,17 +52,19 @@ func convertServiceToEndpoint(service *swarm.Service, labels *ServiceLabel) *end
 func convertServiceToCluster(service *swarm.Service, loadAssignment *endpoint.ClusterLoadAssignment) *cluster.Cluster {
 	const UpstreamConnectTimeout = 2 * time.Second
 	const DNSRefreshRate = 4 * time.Second // When updating services, swarms default delay is 5 seconds, setting this to 4 leaves us with a 1 drain time (worst case)
+	const PerConnectionBufferLimit = 32768 // 32 KiB
 	const UpstreamTCPKeepaliveProbes = 3
 	const UpstreamTCPKeepaliveTime = 3600
 	const UpstreamTCPKeepaliveInterval = 60
 
 	return &cluster.Cluster{
-		Name:                 service.Spec.Name,
-		ConnectTimeout:       ptypes.DurationProto(UpstreamConnectTimeout),
-		ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_STRICT_DNS},
-		RespectDnsTtl:        false, // Default TTL is 600, which is too long in the case of scaling down
-		DnsRefreshRate:       ptypes.DurationProto(DNSRefreshRate),
-		LoadAssignment:       loadAssignment,
+		Name:                          service.Spec.Name,
+		ConnectTimeout:                ptypes.DurationProto(UpstreamConnectTimeout),
+		ClusterDiscoveryType:          &cluster.Cluster_Type{Type: cluster.Cluster_STRICT_DNS},
+		RespectDnsTtl:                 false, // Default TTL is 600, which is too long in the case of scaling down
+		DnsRefreshRate:                ptypes.DurationProto(DNSRefreshRate),
+		LoadAssignment:                loadAssignment,
+		PerConnectionBufferLimitBytes: &wrappers.UInt32Value{Value: uint32(PerConnectionBufferLimit)},
 		UpstreamConnectionOptions: &cluster.UpstreamConnectionOptions{
 			// Unsure if these values make sense, I lowered the linux defaults as I expect the network to be more reliable than the www
 			TcpKeepalive: &core.TcpKeepalive{
