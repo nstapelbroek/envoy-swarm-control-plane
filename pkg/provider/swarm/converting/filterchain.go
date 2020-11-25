@@ -63,6 +63,7 @@ func (b *FilterChainBuilder) Build() *listener.FilterChain {
 }
 
 func (b *FilterChainBuilder) buildHTTPFilterForVhosts() *listener.Filter {
+	const ServerName = "envoy-on-swarm/0.1"
 	const HTTPIdleTimeout = 1 * time.Hour
 	const RequestTimeout = 5 * time.Minute
 	const MaxConcurrentHTTP2Streams = 100
@@ -79,6 +80,7 @@ func (b *FilterChainBuilder) buildHTTPFilterForVhosts() *listener.Filter {
 		VirtualHosts: b.vhosts,
 	}
 	conManager := &hcm.HttpConnectionManager{
+		ServerName:       ServerName,
 		CodecType:        hcm.HttpConnectionManager_AUTO,
 		StatPrefix:       b.name,
 		UseRemoteAddress: &wrappers.BoolValue{Value: true},
