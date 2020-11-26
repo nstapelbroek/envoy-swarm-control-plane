@@ -54,7 +54,7 @@ func NewCertificateSecretsProvider(controlPlaneClusterName string, certificateSt
 	}
 }
 
-func (p *CertificateSecretsProvider) HasCertificate(vhost *route.VirtualHost) bool {
+func (p *CertificateSecretsProvider) HasValidCertificate(vhost *route.VirtualHost) bool {
 	_, _, err := p.getCertificate(vhost)
 	return err == nil
 }

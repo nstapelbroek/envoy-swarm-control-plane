@@ -30,9 +30,14 @@ func (l *ListenerBuilder) ProvideListeners(collection *converting.VhostCollectio
 	for i := range collection.Vhosts {
 		vhost := collection.Vhosts[i]
 
-		if l.sdsProvider.HasCertificate(vhost) {
+		if l.sdsProvider.HasValidCertificate(vhost) {
 			httpFilter.ForVhost(converting.CreateRedirectVhost(vhost))
 			httpsBuilder.AddFilterChain(l.createHTTPSFilterChain(vhost))
+
+			if l.acmeIntegration != nil {
+				l.acmeIntegration.EnableAutoRenewal(vhost)
+			}
+
 			continue
 		}
 

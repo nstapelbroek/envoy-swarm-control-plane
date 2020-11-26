@@ -17,6 +17,7 @@ type Integration struct {
 	acmeClient      *lego.Client
 	acmeClusterName string
 	issueBacklog    map[string][]string
+	renewalList     map[string][]string
 	mutex           sync.Mutex
 	certStorage     *tlsstorage.Certificate
 	logger          logger.Logger
@@ -27,6 +28,7 @@ func NewIntegration(client *lego.Client, cluster string, certStorage *tlsstorage
 		acmeClient:      client,
 		acmeClusterName: cluster,
 		issueBacklog:    make(map[string][]string),
+		renewalList:     make(map[string][]string),
 		certStorage:     certStorage,
 		logger:          log,
 	}
@@ -67,6 +69,22 @@ func (i *Integration) PrepareVhostForIssuing(vhost *route.VirtualHost) *route.Vi
 	return vhost
 }
 
+// EnableAutoRenewal will administer the current domains of the vhost to a watchlist that gets checked every day
+func (i *Integration) EnableAutoRenewal(vhost *route.VirtualHost) {
+	go i.addToRenewalList(vhost.GetDomains())
+}
+
+func (i *Integration) addToRenewalList(domains []string) {
+	backlogKey := domains[0] // @see TestVhostPrimaryDomainIsFirstInDomains
+	if _, exists := i.renewalList[backlogKey]; exists {
+		return
+	}
+
+	i.mutex.Lock()
+	i.renewalList[backlogKey] = domains
+	i.mutex.Unlock()
+}
+
 func (i *Integration) addToIssueBacklog(domains []string) {
 	backlogKey := domains[0] // @see TestVhostPrimaryDomainIsFirstInDomains
 	if _, exists := i.issueBacklog[backlogKey]; exists {
@@ -98,6 +116,9 @@ func (i *Integration) IssueCertificates() (reloadRequired bool, err error) {
 
 		if err = i.certStorage.PutCertificate(domains[0], domains, certs.Certificate, certs.PrivateKey); err != nil {
 			i.logger.Errorf("failed saving certificate to storage: %s", err.Error())
+			// I don't know how to recover from this? Assuming I can re-obtain the cert another round
+			delete(i.issueBacklog, primaryDomain)
+			continue
 		}
 
 		delete(i.issueBacklog, primaryDomain)
