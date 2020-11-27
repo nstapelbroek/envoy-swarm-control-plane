@@ -99,7 +99,7 @@ func createWatchers(ctx context.Context, acmeIntegration *acme.Integration) chan
 	log := internalLogger.Instance().WithFields(logger.Fields{"area": "watcher"})
 
 	if acmeIntegration != nil {
-		go watcher.ForNewCertificates(acmeIntegration, log).Start(ctx, UpdateEvents)
+		go watcher.ForLetsEncrypt(acmeIntegration, log).Start(ctx, UpdateEvents)
 	}
 	go watcher.ForSwarmEvent(log).Start(ctx, UpdateEvents)
 	go watcher.CreateInitialStartupEvent(UpdateEvents)

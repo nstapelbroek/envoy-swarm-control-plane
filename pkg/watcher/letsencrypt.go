@@ -17,7 +17,7 @@ type LetsEncrypt struct {
 	logger      logger.Logger
 }
 
-func ForNewCertificates(integration *acme.Integration, log logger.Logger) *LetsEncrypt {
+func ForLetsEncrypt(integration *acme.Integration, log logger.Logger) *LetsEncrypt {
 	return &LetsEncrypt{
 		integration: integration,
 		logger:      log,
@@ -25,15 +25,19 @@ func ForNewCertificates(integration *acme.Integration, log logger.Logger) *LetsE
 }
 
 func (l *LetsEncrypt) Start(ctx context.Context, dispatchChannel chan snapshot.UpdateReason) {
-	const UpdateInterval = 60
+	const IssueInterval = 60
+	const CheckForRenewalInterval = 86400
 
 	for {
 		select {
-		case <-time.After(UpdateInterval * time.Second):
-			l.logger.Debugf("LetsEncrypt issue interval tick")
+		case <-time.After(IssueInterval * time.Second):
+			l.logger.Debugf("Running LetsEncrypt certificate issuing")
 			if reloadRequired, _ := l.integration.IssueCertificates(); reloadRequired {
 				dispatchChannel <- "new LetsEncrypt certificate"
 			}
+		case <-time.After(CheckForRenewalInterval * time.Second):
+			l.logger.Debugf("Running LetsEncrypt renewal check")
+			l.integration.ScheduleRenewals()
 		case <-ctx.Done():
 			l.logger.Debugf("Stopping certificate issuing")
 			return

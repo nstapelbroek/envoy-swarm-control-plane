@@ -1,8 +1,10 @@
 package acme
 
 import (
+	"crypto/x509"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/go-acme/lego/v4/certificate"
 
@@ -98,6 +100,7 @@ func (i *Integration) addToIssueBacklog(domains []string) {
 
 func (i *Integration) IssueCertificates() (reloadRequired bool, err error) {
 	if len(i.issueBacklog) == 0 {
+		i.logger.Debugf("No certificates to issue")
 		return false, nil
 	}
 
@@ -127,4 +130,34 @@ func (i *Integration) IssueCertificates() (reloadRequired bool, err error) {
 	i.mutex.Unlock()
 
 	return reloadRequired, err
+}
+
+func (i *Integration) ScheduleRenewals() {
+	const CertificateExpiryThreshold = 720
+	if len(i.renewalList) == 0 {
+		i.logger.Debugf("No certificates to watch for renewal")
+		return
+	}
+
+	for primaryDomain := range i.renewalList {
+		domains := i.renewalList[primaryDomain]
+
+		certBytes, _, err := i.certStorage.GetCertificate(primaryDomain, domains)
+		if err != nil {
+			i.logger.Warnf("skipped renewal check for %s due to storage error", primaryDomain)
+			continue
+		}
+
+		// potential problem here if we store more than one cert in a file
+		cert, err := x509.ParseCertificate(certBytes) // todo : hier gaat ie stuk
+		if err != nil {
+			i.logger.Warnf("parsing certificate from storage failed: %", err.Error())
+			continue
+		}
+
+		if time.Now().Add(CertificateExpiryThreshold * time.Hour).After(cert.NotAfter) {
+			go i.addToIssueBacklog(domains)
+			i.logger.Infof("queued renewal of certificate for %s", primaryDomain)
+		}
+	}
 }
