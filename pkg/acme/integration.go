@@ -1,12 +1,12 @@
 package acme
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/go-acme/lego/v4/certificate"
 	"sync"
 	"time"
-
-	"github.com/go-acme/lego/v4/certificate"
 
 	"github.com/go-acme/lego/v4/lego"
 
@@ -142,19 +142,19 @@ func (i *Integration) ScheduleRenewals() {
 	for primaryDomain := range i.renewalList {
 		domains := i.renewalList[primaryDomain]
 
-		certBytes, _, err := i.certStorage.GetCertificate(primaryDomain, domains)
+		certBytes, keyBytes, err := i.certStorage.GetCertificate(primaryDomain, domains)
 		if err != nil {
 			i.logger.Warnf("skipped renewal check for %s due to storage error", primaryDomain)
 			continue
 		}
 
-		// potential problem here if we store more than one cert in a file
-		cert, err := x509.ParseCertificate(certBytes) // todo : hier gaat ie stuk
+		pair, err := tls.X509KeyPair(certBytes, keyBytes)
 		if err != nil {
 			i.logger.Warnf("parsing certificate from storage failed: %", err.Error())
 			continue
 		}
 
+		cert, _ := x509.ParseCertificate(pair.Certificate[0])
 		if time.Now().Add(CertificateExpiryThreshold * time.Hour).After(cert.NotAfter) {
 			go i.addToIssueBacklog(domains)
 			i.logger.Infof("queued renewal of certificate for %s", primaryDomain)
