@@ -4,10 +4,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/go-acme/lego/v4/certificate"
 	"sync"
 	"time"
 
+	"github.com/go-acme/lego/v4/certificate"
 	"github.com/go-acme/lego/v4/lego"
 
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
@@ -34,6 +34,17 @@ func NewIntegration(client *lego.Client, cluster string, certStorage *tlsstorage
 		certStorage:     certStorage,
 		logger:          log,
 	}
+}
+
+// EnableAutoRenewal will administer the current domains of the vhost to a watchlist that gets checked every day
+func (i *Integration) EnableAutoRenewal(vhost *route.VirtualHost) {
+	go i.addToRenewalList(vhost.GetDomains())
+}
+
+// IsScheduledForIssuing will tell if a vhost is about to partake in an ACME challenge
+func (i *Integration) IsScheduledForIssuing(vhost *route.VirtualHost) bool {
+	_, isScheduled := i.issueBacklog[vhost.GetDomains()[0]]
+	return isScheduled
 }
 
 // PrepareVhostForIssuing will add the vhost to the issue backlog and update the vhost config for any ACME challenge
@@ -71,33 +82,6 @@ func (i *Integration) PrepareVhostForIssuing(vhost *route.VirtualHost) *route.Vi
 	return vhost
 }
 
-// EnableAutoRenewal will administer the current domains of the vhost to a watchlist that gets checked every day
-func (i *Integration) EnableAutoRenewal(vhost *route.VirtualHost) {
-	go i.addToRenewalList(vhost.GetDomains())
-}
-
-func (i *Integration) addToRenewalList(domains []string) {
-	backlogKey := domains[0] // @see TestVhostPrimaryDomainIsFirstInDomains
-	if _, exists := i.renewalList[backlogKey]; exists {
-		return
-	}
-
-	i.mutex.Lock()
-	i.renewalList[backlogKey] = domains
-	i.mutex.Unlock()
-}
-
-func (i *Integration) addToIssueBacklog(domains []string) {
-	backlogKey := domains[0] // @see TestVhostPrimaryDomainIsFirstInDomains
-	if _, exists := i.issueBacklog[backlogKey]; exists {
-		return
-	}
-
-	i.mutex.Lock()
-	i.issueBacklog[backlogKey] = domains
-	i.mutex.Unlock()
-}
-
 func (i *Integration) IssueCertificates() (reloadRequired bool, err error) {
 	if len(i.issueBacklog) == 0 {
 		i.logger.Debugf("No certificates to issue")
@@ -132,11 +116,13 @@ func (i *Integration) IssueCertificates() (reloadRequired bool, err error) {
 	return reloadRequired, err
 }
 
-func (i *Integration) ScheduleRenewals() {
-	const CertificateExpiryThreshold = 720
+func (i *Integration) ScheduleRenewals() (reloadRequired bool) {
+	reloadRequired = false
+	const CertificateExpiryThreshold = 720 // 720 hours = 30 days
+
 	if len(i.renewalList) == 0 {
 		i.logger.Debugf("No certificates to watch for renewal")
-		return
+		return reloadRequired
 	}
 
 	for primaryDomain := range i.renewalList {
@@ -158,6 +144,31 @@ func (i *Integration) ScheduleRenewals() {
 		if time.Now().Add(CertificateExpiryThreshold * time.Hour).After(cert.NotAfter) {
 			go i.addToIssueBacklog(domains)
 			i.logger.Infof("queued renewal of certificate for %s", primaryDomain)
+			reloadRequired = true
 		}
 	}
+
+	return reloadRequired
+}
+
+func (i *Integration) addToRenewalList(domains []string) {
+	backlogKey := domains[0] // @see TestVhostPrimaryDomainIsFirstInDomains
+	if _, exists := i.renewalList[backlogKey]; exists {
+		return
+	}
+
+	i.mutex.Lock()
+	i.renewalList[backlogKey] = domains
+	i.mutex.Unlock()
+}
+
+func (i *Integration) addToIssueBacklog(domains []string) {
+	backlogKey := domains[0] // @see TestVhostPrimaryDomainIsFirstInDomains
+	if _, exists := i.issueBacklog[backlogKey]; exists {
+		return
+	}
+
+	i.mutex.Lock()
+	i.issueBacklog[backlogKey] = domains
+	i.mutex.Unlock()
 }
