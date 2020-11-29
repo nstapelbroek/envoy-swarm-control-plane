@@ -117,9 +117,7 @@ func (i *Integration) IssueCertificates() (reloadRequired bool, err error) {
 }
 
 func (i *Integration) ScheduleRenewals() (reloadRequired bool) {
-	reloadRequired = false
 	const CertificateExpiryThreshold = 720 // 720 hours = 30 days
-
 	if len(i.renewalList) == 0 {
 		i.logger.Debugf("No certificates to watch for renewal")
 		return reloadRequired
