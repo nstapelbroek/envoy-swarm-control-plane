@@ -162,7 +162,7 @@ func getStorage() storage.Storage {
 func setupDiscovery(snsProvider provider.SDS, acmeIntegration *acme.Integration) provider.ADS {
 	// Our Listener converter will contain logic to plug vhost into http or https listeners
 	// while negotiating tls state at the SDS and LetEncrypt services
-	listenerBuilder := swarm.NewListenerBuilder(
+	listenerBuilder := swarm.NewListenerProvider(
 		snsProvider,
 		acmeIntegration,
 	)

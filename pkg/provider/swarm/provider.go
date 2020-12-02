@@ -18,11 +18,11 @@ import (
 type ADSProvider struct {
 	ingressNetwork  string // the network name/id where our envoy communicates with services
 	dockerClient    docker.APIClient
-	listenerBuilder *ListenerBuilder
+	listenerBuilder *ListenerProvider
 	logger          logger.Logger
 }
 
-func NewADSProvider(ingressNetwork string, builder *ListenerBuilder, log logger.Logger) *ADSProvider {
+func NewADSProvider(ingressNetwork string, builder *ListenerProvider, log logger.Logger) *ADSProvider {
 	return &ADSProvider{
 		dockerClient:    client.NewDockerClient(),
 		listenerBuilder: builder,
