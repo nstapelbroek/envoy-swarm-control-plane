@@ -53,3 +53,11 @@ func TestAddFilterChain(t *testing.T) {
 
 	assert.Len(t, result.FilterChains, 1)
 }
+
+func TestDownstreamListenerBufferSize(t *testing.T) {
+	subject := NewListenerBuilder("some_builder")
+
+	result := subject.Build()
+
+	assert.Equal(t, uint32(32768), result.PerConnectionBufferLimitBytes.Value)
+}
