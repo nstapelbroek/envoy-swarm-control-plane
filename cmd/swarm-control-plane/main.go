@@ -99,7 +99,7 @@ func createWatchers(ctx context.Context, acmeIntegration *acme.Integration) chan
 	log := internalLogger.Instance().WithFields(logger.Fields{"area": "watcher"})
 
 	if acmeIntegration != nil {
-		go watcher.ForNewCertificates(acmeIntegration, log).Start(ctx, UpdateEvents)
+		go watcher.ForLetsEncrypt(acmeIntegration, log).Start(ctx, UpdateEvents)
 	}
 	go watcher.ForSwarmEvent(log).Start(ctx, UpdateEvents)
 	go watcher.CreateInitialStartupEvent(UpdateEvents)
@@ -162,7 +162,7 @@ func getStorage() storage.Storage {
 func setupDiscovery(snsProvider provider.SDS, acmeIntegration *acme.Integration) provider.ADS {
 	// Our Listener converter will contain logic to plug vhost into http or https listeners
 	// while negotiating tls state at the SDS and LetEncrypt services
-	listenerBuilder := swarm.NewListenerBuilder(
+	listenerBuilder := swarm.NewListenerProvider(
 		snsProvider,
 		acmeIntegration,
 	)

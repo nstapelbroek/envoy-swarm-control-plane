@@ -2,6 +2,7 @@ package tls
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"strings"
 
@@ -54,12 +55,16 @@ func NewCertificateSecretsProvider(controlPlaneClusterName string, certificateSt
 	}
 }
 
-func (p *CertificateSecretsProvider) HasCertificate(vhost *route.VirtualHost) bool {
-	_, _, err := p.getCertificate(vhost)
-	return err == nil
+func (p *CertificateSecretsProvider) HasValidCertificate(vhost *route.VirtualHost) bool {
+	cert, err := p.getCertificate(vhost)
+	if err != nil {
+		return false
+	}
+
+	return IsCertUsable(cert)
 }
 
-// GetCertificateConfig will register vhost in the SDS mapping, assuring that the secrets will be available
+// GetCertificateConfig will register vhost in the SDS mapping, assuring that the certificate is returned when calling Provide()
 func (p *CertificateSecretsProvider) GetCertificateConfig(vhost *route.VirtualHost) *auth.SdsSecretConfig {
 	key := p.getSecretConfigKey(vhost)
 	p.requestedConfigs[key] = vhost
@@ -74,8 +79,8 @@ func (p *CertificateSecretsProvider) Provide(_ context.Context) (secrets []types
 	for sdsKey := range p.requestedConfigs {
 		vhost := p.requestedConfigs[sdsKey]
 
-		// Assume that certificates are just there, no snake-oil fallback at this moment
-		publicChain, privateKey, err := p.getCertificate(vhost)
+		// No need to re-validate anything at this point. We simply serve the bytes that are requested
+		public, private, err := p.getCertificateFromStorage(vhost)
 		if err != nil {
 			p.logger.Warnf("promised certificate for %s is suddenly gone", sdsKey)
 			continue
@@ -86,10 +91,11 @@ func (p *CertificateSecretsProvider) Provide(_ context.Context) (secrets []types
 			Type: &auth.Secret_TlsCertificate{
 				TlsCertificate: &auth.TlsCertificate{
 					CertificateChain: &core.DataSource{
-						Specifier: &core.DataSource_InlineBytes{InlineBytes: publicChain},
+						// assuming that index 0 is the leaf
+						Specifier: &core.DataSource_InlineBytes{InlineBytes: public},
 					},
 					PrivateKey: &core.DataSource{
-						Specifier: &core.DataSource_InlineBytes{InlineBytes: privateKey},
+						Specifier: &core.DataSource_InlineBytes{InlineBytes: private},
 					},
 				},
 			},
@@ -103,20 +109,20 @@ func (p *CertificateSecretsProvider) getSecretConfigKey(vhost *route.VirtualHost
 	return p.configKeyPrefix + strings.ToLower(vhost.Name)
 }
 
-// getCertificate retrieves a certificate from storage and does extra validations to assure that it's usable
-func (p *CertificateSecretsProvider) getCertificate(vhost *route.VirtualHost) ([]byte, []byte, error) {
+// getCertificate retrieves a certificate from storage and parses it to assure it's usable
+func (p *CertificateSecretsProvider) getCertificate(vhost *route.VirtualHost) (*tls.Certificate, error) {
 	certBytes, keyBytes, err := p.getCertificateFromStorage(vhost)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	// Poor mans approach for validating as we do not validate the cert and key together
-	if err := validatePublicCertificate(certBytes); err != nil {
-		p.logger.Infof("validating certificate failed: %", err.Error())
-		return nil, nil, err
+	cert, err := tls.X509KeyPair(certBytes, keyBytes)
+	if err != nil {
+		p.logger.Infof("decoding certificate from storage failed: %", err.Error())
+		return nil, err
 	}
 
-	return certBytes, keyBytes, err
+	return &cert, err
 }
 
 func (p *CertificateSecretsProvider) getCertificateFromStorage(vhost *route.VirtualHost) ([]byte, []byte, error) {

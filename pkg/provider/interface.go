@@ -16,6 +16,6 @@ type ADS interface {
 
 type SDS interface {
 	Provide(ctx context.Context) (secrets []types.Resource, err error)
-	HasCertificate(vhost *route.VirtualHost) bool
+	HasValidCertificate(vhost *route.VirtualHost) bool
 	GetCertificateConfig(vhost *route.VirtualHost) *auth.SdsSecretConfig
 }
