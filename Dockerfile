@@ -24,6 +24,7 @@ RUN go test ./...
 
 # the actuall result should be concise
 FROM alpine:latest as app
+RUN apk add -U ca-certificates && rm -rf /var/cache/apk/*
 WORKDIR /bin/
 COPY --from=build /src/cmd/swarm-control-plane/swarm-control-plane .
 
