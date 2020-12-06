@@ -1,7 +1,8 @@
 version: '3.7'
+
 services:
   control-plane:
-    image: nstapelbroek/envoy-swarm-control-plane:0.15
+    image: nstapelbroek/envoy-swarm-control-plane:0.1
     command:
       - --ingress-network
       - edge-traffic
@@ -22,7 +23,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
   lb:
-    image: nstapelbroek/envoy-edge:0.15
+    image: nstapelbroek/envoy-swarm-edge:0.1
     deploy:
       placement:
         constraints:
