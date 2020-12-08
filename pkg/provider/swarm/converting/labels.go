@@ -6,14 +6,16 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	valid "github.com/asaskevich/govalidator"
 	types "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 )
 
 type ServiceEndpoint struct {
-	Protocol types.SocketAddress_Protocol
-	Port     types.SocketAddress_PortValue
+	RequestTimeout time.Duration
+	Protocol       types.SocketAddress_Protocol
+	Port           types.SocketAddress_PortValue
 }
 
 type ServiceRoute struct {
@@ -29,6 +31,9 @@ type ServiceLabel struct {
 
 func (l *ServiceLabel) setEndpointProp(property, value string) {
 	switch strings.ToLower(property) {
+	case "timeout":
+		timeout, _ := time.ParseDuration(value)
+		l.Endpoint.RequestTimeout = timeout
 	case "protocol":
 		p := types.SocketAddress_TCP
 		if strings.EqualFold(value, "udp") {
@@ -58,11 +63,13 @@ func (l *ServiceLabel) setRouteProp(property, value string) {
 var serviceLabelRegex = regexp.MustCompile(`(?Uim)envoy\.(?P<type>\S+)\.(?P<property>\S+$)`)
 
 // NewServiceLabel will create an ServiceLabel with default values
+// Note that some values like the timeouts are based upon best practices for running at the edge: https://www.envoyproxy.io/docs/envoy/latest/configuration/best_practices/edge
 func NewServiceLabel() ServiceLabel {
 	return ServiceLabel{
 		ServiceEndpoint{
-			Protocol: types.SocketAddress_TCP,
-			Port:     types.SocketAddress_PortValue{PortValue: 0},
+			RequestTimeout: 15 * time.Second,
+			Protocol:       types.SocketAddress_TCP,
+			Port:           types.SocketAddress_PortValue{PortValue: 0},
 		},
 		ServiceRoute{
 			ExtraDomains: []string{},
@@ -98,6 +105,10 @@ func (l ServiceLabel) Validate() error {
 
 	if l.Route.Domain == "" {
 		return errors.New("there is no route.domain label specified")
+	}
+
+	if l.Endpoint.RequestTimeout.Seconds() < 1 {
+		return errors.New("the endpoint.timeout should be at least 1 second")
 	}
 
 	if !valid.IsDNSName(l.Route.Domain) {
