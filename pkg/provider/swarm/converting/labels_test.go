@@ -38,9 +38,9 @@ func TestServiceLabelInvalidTimeout(t *testing.T) {
 	label := NewServiceLabel()
 	label.Route.Domain = "example"
 	label.Endpoint.Port = types.SocketAddress_PortValue{PortValue: 80}
-	label.Endpoint.RequestTimeout = 500 * time.Millisecond
+	label.Endpoint.RequestTimeout = -500 * time.Millisecond
 
-	assert.Error(t, label.Validate(), "the endpoint.timeout should be at least 1 second")
+	assert.Error(t, label.Validate(), "the endpoint.timeout can't be a negative number")
 }
 
 func TestParseServiceLabelsEndpointTimeout(t *testing.T) {

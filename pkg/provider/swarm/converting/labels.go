@@ -107,8 +107,8 @@ func (l ServiceLabel) Validate() error {
 		return errors.New("there is no route.domain label specified")
 	}
 
-	if l.Endpoint.RequestTimeout.Seconds() < 1 {
-		return errors.New("the endpoint.timeout should be at least 1 second")
+	if l.Endpoint.RequestTimeout.Seconds() < 0 {
+		return errors.New("the endpoint.timeout can't be a negative number")
 	}
 
 	if !valid.IsDNSName(l.Route.Domain) {
