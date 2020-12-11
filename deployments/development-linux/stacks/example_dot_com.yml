@@ -23,6 +23,18 @@ services:
     networks:
       - edge-traffic
 
+  ci:
+    image: nstapelbroek/upstream-service-demo:latest
+    deploy:
+      replicas: 1
+      labels:
+        - envoy.endpoint.port=8080
+        - envoy.endpoint.timeout=30m
+        - envoy.route.domain=ci.example.com
+        - envoy.route.path=/
+    networks:
+        - edge-traffic
+
 networks:
   edge-traffic:
     external: true
