@@ -116,6 +116,9 @@ func (b *FilterChainBuilder) buildDownstreamTransportSocket() *core.TransportSoc
 		CommonTlsContext: &auth.CommonTlsContext{
 			AlpnProtocols:                  []string{"h2", "http/1.1"},
 			TlsCertificateSdsSecretConfigs: []*auth.SdsSecretConfig{b.sdsCertificateConfig},
+			TlsParams: &auth.TlsParameters{
+				TlsMinimumProtocolVersion: auth.TlsParameters_TLSv1_2,
+			},
 		},
 	}
 	tlsc, _ := ptypes.MarshalAny(c)
