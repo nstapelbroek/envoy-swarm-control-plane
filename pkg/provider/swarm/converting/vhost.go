@@ -2,10 +2,9 @@ package converting
 
 import (
 	"fmt"
-	"github.com/golang/protobuf/ptypes"
-	"time"
 
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	"github.com/golang/protobuf/ptypes"
 )
 
 type VhostCollection struct {
@@ -73,8 +72,6 @@ func (w VhostCollection) AddService(clusterIdentifier string, labels *ServiceLab
 }
 
 func (w VhostCollection) createRoute(clusterIdentifier string, labels *ServiceLabel) *route.Route {
-	const clientIdleTimeout = 15
-
 	return &route.Route{
 		Name: clusterIdentifier + "_route",
 		Match: &route.RouteMatch{
@@ -88,7 +85,7 @@ func (w VhostCollection) createRoute(clusterIdentifier string, labels *ServiceLa
 					Cluster: clusterIdentifier,
 				},
 				// https://github.com/envoyproxy/envoy/issues/8517#issuecomment-540225144
-				IdleTimeout: ptypes.DurationProto(clientIdleTimeout * time.Second),
+				IdleTimeout: ptypes.DurationProto(labels.Endpoint.RequestTimeout),
 				Timeout:     ptypes.DurationProto(labels.Endpoint.RequestTimeout),
 			},
 		},
