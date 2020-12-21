@@ -8,16 +8,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func assertAddress(t *testing.T, expected string, listener *listener.Listener) {
-	assert.IsType(t, &core.Address_SocketAddress{}, listener.Address.Address)
-	address := listener.Address.Address.(*core.Address_SocketAddress)
+func assertAddress(t *testing.T, expected string, l *listener.Listener) {
+	assert.IsType(t, &core.Address_SocketAddress{}, l.Address.Address)
+	address := l.Address.Address.(*core.Address_SocketAddress)
 
 	assert.Equal(t, expected, address.SocketAddress.Address)
 }
 
-func assertPort(t *testing.T, expected uint32, listener *listener.Listener) {
-	assert.IsType(t, &core.Address_SocketAddress{}, listener.Address.Address)
-	address := listener.Address.Address.(*core.Address_SocketAddress)
+func assertPort(t *testing.T, expected uint32, l *listener.Listener) {
+	assert.IsType(t, &core.Address_SocketAddress{}, l.Address.Address)
+	address := l.Address.Address.(*core.Address_SocketAddress)
 	assert.IsType(t, &core.SocketAddress_PortValue{}, address.SocketAddress.PortSpecifier)
 	port := address.SocketAddress.PortSpecifier.(*core.SocketAddress_PortValue)
 	assert.Equal(t, expected, port.PortValue)

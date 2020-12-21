@@ -49,10 +49,10 @@ func TestListenerBuilder_createListenersFromVhostsEmptyVhostCollection(t *testin
 	subject := NewListenerProvider(nil, nil)
 	testcase := converting.NewVhostCollection()
 
-	httpResult, HttpsResult := subject.createListenersFromVhosts(testcase)
+	httpResult, httpsResult := subject.createListenersFromVhosts(testcase)
 
 	assert.Len(t, httpResult.GetFilterChains(), 1)
-	assert.Len(t, HttpsResult.GetFilterChains(), 0)
+	assert.Len(t, httpsResult.GetFilterChains(), 0)
 }
 
 func TestListenerBuilder_createListenersFromVhostsNoCerts(t *testing.T) {
@@ -63,10 +63,10 @@ func TestListenerBuilder_createListenersFromVhostsNoCerts(t *testing.T) {
 		Domains: []string{"somedomain.com", "www.somedomain.com"},
 	}
 
-	httpResult, HttpsResult := subject.createListenersFromVhosts(testcase)
+	httpResult, httpsResult := subject.createListenersFromVhosts(testcase)
 
 	assert.Len(t, httpResult.GetFilterChains(), 1)
-	assert.Len(t, HttpsResult.GetFilterChains(), 0)
+	assert.Len(t, httpsResult.GetFilterChains(), 0)
 }
 
 func TestListenerBuilder_createListenersFromVhostsWithCerts(t *testing.T) {
@@ -78,10 +78,10 @@ func TestListenerBuilder_createListenersFromVhostsWithCerts(t *testing.T) {
 		Domains: []string{"somedomain.com", "www.somedomain.com"},
 	}
 
-	httpResult, HttpsResult := subject.createListenersFromVhosts(testcase)
+	httpResult, httpsResult := subject.createListenersFromVhosts(testcase)
 
 	assert.Len(t, httpResult.GetFilterChains(), 1)
-	assert.Len(t, HttpsResult.GetFilterChains(), 1)
+	assert.Len(t, httpsResult.GetFilterChains(), 1)
 }
 
 func TestListenerBuilder_createListenersFromMultiVhostsWithCerts(t *testing.T) {
@@ -101,11 +101,11 @@ func TestListenerBuilder_createListenersFromMultiVhostsWithCerts(t *testing.T) {
 		Domains: []string{"example.nl"},
 	}
 
-	httpResult, HttpsResult := subject.createListenersFromVhosts(testcase)
+	httpResult, httpsResult := subject.createListenersFromVhosts(testcase)
 
 	// clearly shows that every vhost with a certificate ends up as a separate filter chain for TLS connections
 	assert.Len(t, httpResult.GetFilterChains(), 1)
-	assert.Len(t, HttpsResult.GetFilterChains(), 3)
+	assert.Len(t, httpsResult.GetFilterChains(), 3)
 }
 
 func Test_createHTTPSRedirectVhost(t *testing.T) {
