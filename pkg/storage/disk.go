@@ -23,10 +23,8 @@ func NewDiskStorage(path string, log logger.Logger) *DiskStorage {
 }
 
 func (c *DiskStorage) GetFile(fileName string) (content []byte, err error) {
-	log := c.getLogger(fileName)
 	content, err = ioutil.ReadFile(fmt.Sprintf("%s/%s", c.directory, fileName))
 	if err != nil {
-		log.Warnf("error while reading file", err.Error())
 		return nil, err
 	}
 
