@@ -36,7 +36,7 @@ func (d *Manager) Listen(updateChannel chan UpdateReason) {
 }
 
 func (d *Manager) runDiscovery(reason UpdateReason) error {
-	d.logger.WithFields(logger.Fields{"reason": reason}).Debugf("Running service discovery")
+	d.logger.WithFields(logger.Fields{"reason": reason}).Infof("Running service discovery")
 
 	const discoveryTimeout = 30 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), discoveryTimeout)
