@@ -27,9 +27,12 @@ func (s SwarmEvent) Start(ctx context.Context, dispatchChannel chan snapshot.Upd
 
 	for {
 		select {
-		case <-events:
-			s.logger.Debugf("received service event from docker")
-			dispatchChannel <- "a swarm service changed" // todo investigate if waiting for a receiver here blocks other interactions.
+		case event := <-events:
+			s.logger.WithFields(logger.Fields{"type": event.Type, "action": event.Action}).Debugf("received service event from docker")
+			if event.Action == "create" { // new services result in a created and updated event. Prevent unnecessary cycles
+				continue
+			}
+			dispatchChannel <- "a swarm service changed"
 		case err := <-errorEvent:
 			s.logger.Errorf(err.Error())
 			s.Start(ctx, dispatchChannel) // Auto recover on errors @see github.com/docker/engine/docker/events.go:19
