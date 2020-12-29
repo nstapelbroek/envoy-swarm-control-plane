@@ -1,5 +1,6 @@
 # Envoy Swarm Control Plane
-Opinionated control plane software that enables virtual hosting in docker swarm by using Envoy as an edge proxy.
+Opinionated control plane software that configures [Envoy Proxy](https://www.envoyproxy.io/) as a reverse proxy for 
+docker swarm. Enable vhosting accross your swarm with just two services!
 
 [![asciicast](https://asciinema.org/a/LEu3l3sLfIVVA6GomAh5cn0Mo.svg)](https://asciinema.org/a/LEu3l3sLfIVVA6GomAh5cn0Mo)
 
@@ -20,7 +21,7 @@ Opinionated control plane software that enables virtual hosting in docker swarm 
   - Automatic renewals
 - Able to store certificates on Disk or Object storage
 - Tries to play nice with system resources
-  - So far it uses ~25mb on a swarm with 20 swarm services
+  - So far it uses ~25mb on a swarm with 20 services
 
 ## Getting started
 Use the [docs](docs/introduction.md) to learn more.
