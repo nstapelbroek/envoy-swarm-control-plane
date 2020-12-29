@@ -37,12 +37,12 @@ func (l *ListenerProvider) ProvideListeners(collection *converting.VhostCollecti
 }
 
 // createListenersFromVhosts will create so-called network filter chains for each vhost that has a TLS certificate.
-// This assures we serve the correct certificate even before we start routing the HTTP request (because they reside on a different OSI layer)
+// This assures we serve the correct certificate even before we know what the request speaks (we assume HTTP)
 func (l *ListenerProvider) createListenersFromVhosts(collection *converting.VhostCollection) (http, https *listener.Listener) {
 	// Every vhost that doesn't have a certificate will end up in our generic HTTP catch-all filter
 	httpFilter := converting.NewFilterChainBuilder("httpFilter")
 
-	// Each filter is added to a listener, as we are aiming to serve only HTTP and HTTPS at this moment we need 2 listeners
+	// Each filter is added to a listener, a listener will instruct envoy to "listen" on a port
 	httpBuilder := converting.NewListenerBuilder("http_listener")
 	httpsBuilder := converting.NewListenerBuilder("https_listener").EnableTLS()
 
@@ -53,8 +53,9 @@ func (l *ListenerProvider) createListenersFromVhosts(collection *converting.Vhos
 			hasValidCertificate = l.sdsProvider.HasValidCertificate(vhost)
 		}
 
-		// We handle LetsEncrypt first because they might mutate the vhost data
+		// handle LetsEncrypt first because it might mutate the vhost config
 		if l.acmeIntegration != nil {
+			// this covers two use cases: new certificates (hasValidCertificate) and schedules renewals (IsScheduledForIssuing)
 			if !hasValidCertificate || l.acmeIntegration.IsScheduledForIssuing(vhost) {
 				vhost = l.acmeIntegration.PrepareVhostForIssuing(vhost)
 			}
@@ -66,15 +67,14 @@ func (l *ListenerProvider) createListenersFromVhosts(collection *converting.Vhos
 
 		if hasValidCertificate {
 			httpsFilter := l.createFilterChainWithTLS(vhost)
-
-			httpFilter.ForVhost(createHTTPSRedirectVhost(vhost))
 			httpsFilter.ForVhost(vhost)
 			httpsBuilder.AddFilterChain(httpsFilter)
 
-			continue // continue instead of else, personal preference
+			// note that our redirect logic plays nice with paths, so ACME challenges should still work
+			httpFilter.ForVhost(createNewHTTPSRedirectVhost(vhost))
+		} else {
+			httpFilter.ForVhost(vhost)
 		}
-
-		httpFilter.ForVhost(vhost)
 	}
 
 	httpBuilder.AddFilterChain(httpFilter)
@@ -85,7 +85,7 @@ func (l *ListenerProvider) createFilterChainWithTLS(vhost *route.VirtualHost) *c
 	return converting.NewFilterChainBuilder(vhost.Name).EnableTLS(vhost.Domains, l.sdsProvider.GetCertificateConfig(vhost))
 }
 
-func createHTTPSRedirectVhost(originalVhost *route.VirtualHost) *route.VirtualHost {
+func createNewHTTPSRedirectVhost(originalVhost *route.VirtualHost) *route.VirtualHost {
 	return &route.VirtualHost{
 		Name:    originalVhost.Name,
 		Domains: originalVhost.Domains,

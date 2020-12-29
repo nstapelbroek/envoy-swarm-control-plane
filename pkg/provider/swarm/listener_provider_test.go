@@ -114,7 +114,7 @@ func Test_createHTTPSRedirectVhost(t *testing.T) {
 		Domains: []string{"original.com", "www.original.com"},
 	}
 
-	redirectVhost := createHTTPSRedirectVhost(originalVhost)
+	redirectVhost := createNewHTTPSRedirectVhost(originalVhost)
 
 	assert.Equal(t, originalVhost.Name, redirectVhost.Name)
 	assert.Equal(t, originalVhost.Domains, redirectVhost.Domains)
