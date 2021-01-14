@@ -30,7 +30,7 @@ To summarise, this setup is packed with:
 Note that you'll have to manually edit /etc/hosts when you are testing upstream swarm services. This setup comes with two services, configured to serve at example.com.
 My resulting hostfile looks like this: 
 ```
-172.20.0.1 example.com www.example.com new.example.com frontend.example.com api.example.com
+172.20.0.1 example.com www.example.com new.example.com frontend.example.com api.example.com mysite.com
 ```
 
 ### Getting started

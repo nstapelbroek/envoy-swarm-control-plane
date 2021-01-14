@@ -10,14 +10,14 @@ endif
 
 .PHONY: cleanup
 cleanup:
-	$(foreach f, $(USERLAND_STACKS), @docker stack rm $(basename $(notdir $f)) || exit 0;)
+	$(foreach f, $(USERLAND_STACKS), docker stack rm $(basename $(notdir $f)) || exit 0;)
 	@docker service rm $(ENVOY_SERVICE_NAME) || exit 0
 	$(info removing network)
 	@docker network rm $(DOCKER_NETWORK_NAME) || exit 0
 
 .PHONY: deploy-services
 deploy-services:
-	$(foreach f, $(USERLAND_STACKS), @docker stack deploy --compose-file $(CURDIR)/$f $(basename $(notdir $f));)
+	$(foreach f, $(USERLAND_STACKS), docker stack deploy --compose-file $(CURDIR)/$f $(basename $(notdir $f));)
 	@echo Demo services deployed, make sure you update you /etc/hosts !
 
 .PHONY: deploy-envoy
