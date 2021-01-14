@@ -26,7 +26,7 @@ Note that this folder might contain some files and folders that are not relevant
 This control plane works on all kinds of setups regardless if you have 1, 3 or 10+ nodes running with multiple managers. That's one of the cool things! 
 But, to keep things generic, a high-level overview consists of:
 
-1. Envoy instances that run on one or many nodes, which we'll call / mark as `edge` nodes.
+1. Envoy instances that run on one or many nodes, which we'll call / label as `edge` nodes.
    a. With bounded port 80 & 443 in [host mode](https://docs.docker.com/network/host/) to prevent unnecessary network hops
 1. A single instance of the control plane software running on a manager node.
 
@@ -50,13 +50,13 @@ docker network create --driver=overlay --attachable edge-traffic
 
 Keep in mind the overlay network name (`edge-traffic`) that you've just created as you will be referring to this network in your stack files.
 
-### 3. Tag your edge nodes
+### 3. Label your edge nodes
 
-We are going to tag one or more nodes in your cluster as an edge node. Tagging the node allows the docker swarm scheduler to filter for specific nodes when deploying the envoy application.
+We are going to label one or more nodes in your cluster as an edge node. Labeling the node allows the docker swarm scheduler to filter for specific nodes when deploying the envoy application.
 
-In the example below I have a pair of nodes in a manager & worker setup. I'm going to tag the worker node as an edge node.
+In the example below I have a pair of nodes in a manager & worker setup. I'm going to label the worker node as an edge node.
 
-// todo: screenshot
+![example where I label a node](assets/node_labeling.png)
 
 ```
 docker node update --label-add edge=true  $NODE_ID
