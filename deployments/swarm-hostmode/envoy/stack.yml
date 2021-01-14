@@ -19,17 +19,24 @@ services:
       restart_policy:
         condition: any
         window: 10s
+    networks:
+      - default
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
-  lb:
+  proxy:
     image: nstapelbroek/envoy-swarm-edge:0.1
     deploy:
+      mode: global
       placement:
         constraints:
           - node.labels.edge == true
-        preferences:
-          - spread: node.name
+      restart_policy:
+        condition: any
+        window: 10s
+    networks:
+      - default
+      - edge-traffic
     ports:
       - target: 80
         published: 80
@@ -37,11 +44,9 @@ services:
       - target: 443
         published: 443
         mode: host
-    networks:
-      - default
-      - edge-traffic
 
 
 networks:
+  default: {}
   edge-traffic:
     external: true
