@@ -64,7 +64,8 @@ docker node update --label-add edge=true  $NODE_ID
 
 Of course, you will have to point the DNS entries for your domain towards the public IP address of the node.
 
-*A note on using multiple nodes:*
+#### A note on using multiple nodes
+
 When using multiple edge nodes you would also have to think about how internet traffic is divided between these nodes. It's a bit more complicated than adding another IP address to the DNS record.
 
 
@@ -143,7 +144,8 @@ o9zzxc1bnokt        envoy_control-plane.1                    nstapelbroek/envoy-
 
 When the services are running, the control plane will read your docker swarm state and communicate this towards the proxies.
 
-*Encrypting the web*
+#### Encrypting the web
+
 I highly recommend setting up TLS and optional LetsEncrypt. These are just a couple of extra command arguments for your control plane. 
 Read about it here.
 
@@ -179,7 +181,8 @@ After deploying your application stack / services with the labels. The Envoy pro
 them. It works just like [in the demo](https://asciinema.org/a/LEu3l3sLfIVVA6GomAh5cn0Mo).
 
 
-*There is more*
+#### There is more
+
 There are more configuration labels available! you can route paths, multiple domains and even things like connection 
 timeouts. See a list of more options here.
 
