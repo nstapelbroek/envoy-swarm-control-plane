@@ -5,10 +5,13 @@ name = "pypi"
 
 [packages]
 mkdocs = "*"
-mkdocs-gitbook = "*"
 mkdocs-material = "*"
 
 [dev-packages]
 
 [requires]
 python_version = "3.9"
+
+[scripts]
+dev = "mkdocs serve"
+publish = "mkdocs gh-deploy"
