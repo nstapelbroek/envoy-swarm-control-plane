@@ -1,0 +1,22 @@
+site_name: Envoy Swarm Control Plane
+repo_url: 'https://github.com/nstapelbroek/envoy-swarm-control-plane/'
+docs_dir: 'pages'
+
+theme:
+  name: material
+  language: en
+
+plugins: []
+
+markdown_extensions:
+  - attr_list
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+nav:
+  - 'Welcome': 'index.md'
+  - 'Getting Started':
+      - 'Installation': 'getting-started/installation.md'
+  - 'Development':
+      - 'Context & Background': 'development/background.md'
+      - 'Scope': 'development/scope.md'
