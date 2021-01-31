@@ -24,7 +24,7 @@ docker swarm. Enable vhosting accross your swarm with just two services!
   - So far it uses ~25mb on a swarm with 20 services
 
 ## Getting started
-Use the [docs](docs/introduction.md) to learn more.
+Use the [docs](docs/pages/getting-started/installation.md) to learn more.
   
 ## Roadmap:
 I'm working to get this to an MVP state.
