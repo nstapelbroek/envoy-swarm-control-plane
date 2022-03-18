@@ -2,9 +2,9 @@ package converting
 
 import (
 	"fmt"
+	"github.com/golang/protobuf/ptypes"
 
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
-	"github.com/golang/protobuf/ptypes"
 )
 
 type VhostCollection struct {

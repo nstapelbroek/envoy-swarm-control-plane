@@ -66,7 +66,7 @@ func (d *Manager) createSnapshot(clusters, listeners, secrets []types.Resource) 
 		return err
 	}
 
-	err = d.snapshotCache.SetSnapshot(staticHash, snapshot)
+	err = d.snapshotCache.SetSnapshot(context.Background(), staticHash, snapshot)
 	if err != nil {
 		return err
 	}
