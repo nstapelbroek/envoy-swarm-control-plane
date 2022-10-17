@@ -32,8 +32,9 @@ type ServiceLabel struct {
 func (l *ServiceLabel) setEndpointProp(property, value string) {
 	switch strings.ToLower(property) {
 	case "timeout":
-		timeout, _ := time.ParseDuration(value)
-		l.Endpoint.RequestTimeout = timeout
+		if timeout, err := time.ParseDuration(value); err != nil {
+			l.Endpoint.RequestTimeout = timeout
+		}
 	case "protocol":
 		p := types.SocketAddress_TCP
 		if strings.EqualFold(value, "udp") {
