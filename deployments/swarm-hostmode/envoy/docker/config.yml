@@ -35,7 +35,6 @@ dynamic_resources:
 
 node:
   cluster: edge
-  id: default-node
 
 static_resources:
   clusters:
