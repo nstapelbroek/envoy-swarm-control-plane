@@ -18,7 +18,7 @@ type logrusLogger struct {
 }
 
 func newLogrusLogger(debug bool) *logrusLogger {
-	var l = logrus.New()
+	l := logrus.New()
 	l.Formatter = new(logrus.JSONFormatter)
 	l.Out = os.Stdout
 	if debug {

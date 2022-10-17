@@ -1,9 +1,11 @@
 package converting
 
 import (
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/wrappers"
 	"time"
+
+	"google.golang.org/protobuf/types/known/durationpb"
+
+	"github.com/golang/protobuf/ptypes/wrappers"
 
 	"github.com/docker/docker/api/types/swarm"
 	cluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -59,10 +61,10 @@ func convertServiceToCluster(service *swarm.Service, loadAssignment *endpoint.Cl
 
 	return &cluster.Cluster{
 		Name:                          service.Spec.Name,
-		ConnectTimeout:                ptypes.DurationProto(UpstreamConnectTimeout),
+		ConnectTimeout:                durationpb.New(UpstreamConnectTimeout),
 		ClusterDiscoveryType:          &cluster.Cluster_Type{Type: cluster.Cluster_STRICT_DNS},
 		RespectDnsTtl:                 false, // Default TTL is 600, which is too long in the case of scaling down
-		DnsRefreshRate:                ptypes.DurationProto(DNSRefreshRate),
+		DnsRefreshRate:                durationpb.New(DNSRefreshRate),
 		LoadAssignment:                loadAssignment,
 		PerConnectionBufferLimitBytes: &wrappers.UInt32Value{Value: uint32(PerConnectionBufferLimit)},
 		UpstreamConnectionOptions: &cluster.UpstreamConnectionOptions{

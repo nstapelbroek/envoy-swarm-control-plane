@@ -31,7 +31,7 @@ func (o *ObjectStorage) GetStorageDirectory() string {
 func (o *ObjectStorage) GetFile(objectName string) (contents []byte, err error) {
 	// read through cache
 	if contents, err = o.cache.GetFile(objectName); err == nil {
-		return contents, err
+		return contents, nil
 	}
 
 	err = o.getAndCacheFile(objectName)

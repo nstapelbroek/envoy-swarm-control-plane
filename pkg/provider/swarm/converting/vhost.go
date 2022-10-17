@@ -2,7 +2,8 @@ package converting
 
 import (
 	"fmt"
-	"github.com/golang/protobuf/ptypes"
+
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 )
@@ -85,8 +86,8 @@ func (w VhostCollection) createRoute(clusterIdentifier string, labels *ServiceLa
 					Cluster: clusterIdentifier,
 				},
 				// https://github.com/envoyproxy/envoy/issues/8517#issuecomment-540225144
-				IdleTimeout: ptypes.DurationProto(labels.Endpoint.RequestTimeout),
-				Timeout:     ptypes.DurationProto(labels.Endpoint.RequestTimeout),
+				IdleTimeout: durationpb.New(labels.Endpoint.RequestTimeout),
+				Timeout:     durationpb.New(labels.Endpoint.RequestTimeout),
 			},
 		},
 	}

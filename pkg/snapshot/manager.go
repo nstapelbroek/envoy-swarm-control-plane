@@ -2,8 +2,9 @@ package snapshot
 
 import (
 	"context"
-	"github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"time"
+
+	"github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
@@ -63,7 +64,6 @@ func (d *Manager) createSnapshot(clusters, listeners, secrets []types.Resource) 
 		resource.ListenerType: listeners,
 		resource.SecretType:   secrets,
 	})
-
 	if err != nil {
 		return err
 	}

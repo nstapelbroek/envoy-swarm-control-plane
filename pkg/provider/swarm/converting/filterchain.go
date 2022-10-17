@@ -2,9 +2,12 @@ package converting
 
 import (
 	"fmt"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/wrappers"
 	"time"
+
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
+
+	"github.com/golang/protobuf/ptypes/wrappers"
 
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
@@ -86,7 +89,7 @@ func (b *FilterChainBuilder) buildHTTPFilterForVhosts() *listener.Filter {
 		RouteSpecifier:   &hcm.HttpConnectionManager_RouteConfig{RouteConfig: routes},
 		HttpFilters:      []*hcm.HttpFilter{{Name: "envoy.filters.http.router"}},
 		CommonHttpProtocolOptions: &core.HttpProtocolOptions{
-			IdleTimeout:                  ptypes.DurationProto(HTTPIdleTimeout),
+			IdleTimeout:                  durationpb.New(HTTPIdleTimeout),
 			HeadersWithUnderscoresAction: core.HttpProtocolOptions_REJECT_REQUEST,
 		},
 		Http2ProtocolOptions: &core.Http2ProtocolOptions{
@@ -94,10 +97,10 @@ func (b *FilterChainBuilder) buildHTTPFilterForVhosts() *listener.Filter {
 			InitialStreamWindowSize:     &wrappers.UInt32Value{Value: uint32(InitialDownstreamHTTP2StreamWindowSize)},
 			InitialConnectionWindowSize: &wrappers.UInt32Value{Value: uint32(InitialDownstreamHTTP2ConnectionWindowSize)},
 		},
-		StreamIdleTimeout: ptypes.DurationProto(RequestTimeout),
-		RequestTimeout:    ptypes.DurationProto(RequestTimeout),
+		StreamIdleTimeout: durationpb.New(RequestTimeout),
+		RequestTimeout:    durationpb.New(RequestTimeout),
 	}
-	managerConfig, err := ptypes.MarshalAny(conManager)
+	managerConfig, err := anypb.New(conManager)
 	if err != nil {
 		panic(err)
 	}
@@ -120,7 +123,7 @@ func (b *FilterChainBuilder) buildDownstreamTransportSocket() *core.TransportSoc
 			},
 		},
 	}
-	tlsc, _ := ptypes.MarshalAny(c)
+	tlsc, _ := anypb.New(c)
 
 	return &core.TransportSocket{
 		Name: "envoy.transport_sockets.tls",

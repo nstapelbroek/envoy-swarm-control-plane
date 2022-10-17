@@ -2,14 +2,13 @@ package storage
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
 	"github.com/nstapelbroek/envoy-swarm-control-plane/pkg/logger"
 )
 
-const fileMode = 0600
+const fileMode = 0o600
 
 type DiskStorage struct {
 	directory string
@@ -23,7 +22,7 @@ func NewDiskStorage(path string, log logger.Logger) *DiskStorage {
 }
 
 func (c *DiskStorage) GetFile(fileName string) (content []byte, err error) {
-	content, err = ioutil.ReadFile(fmt.Sprintf("%s/%s", c.directory, fileName))
+	content, err = os.ReadFile(fmt.Sprintf("%s/%s", c.directory, fileName))
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +32,7 @@ func (c *DiskStorage) GetFile(fileName string) (content []byte, err error) {
 
 func (c *DiskStorage) PutFile(fileName string, contents []byte) (err error) {
 	log := c.getLogger(fileName)
-	err = ioutil.WriteFile(
+	err = os.WriteFile(
 		fmt.Sprintf("%s/%s", c.directory, fileName),
 		contents,
 		os.FileMode(fileMode),

@@ -28,6 +28,7 @@ func (a *AcmeClientBuilder) ForAccount(email string) *AcmeClientBuilder {
 
 	return a
 }
+
 func (a *AcmeClientBuilder) WithHTTP01Challenge(port string) *AcmeClientBuilder {
 	a.http01Port = port
 
