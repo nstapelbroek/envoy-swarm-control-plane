@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"context"
+	"github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"time"
 
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
@@ -56,17 +57,22 @@ func (d *Manager) runDiscovery(reason UpdateReason) error {
 }
 
 func (d *Manager) createSnapshot(clusters, listeners, secrets []types.Resource) error {
-	snapshot := cache.Snapshot{}
 	version := time.Now().Format(time.RFC3339)
-	snapshot.Resources[types.Listener] = cache.NewResources(version, listeners)
-	snapshot.Resources[types.Cluster] = cache.NewResources(version, clusters)
-	snapshot.Resources[types.Secret] = cache.NewResources(version, secrets)
-	err := snapshot.Consistent()
+	snap, err := cache.NewSnapshot(version, map[resource.Type][]types.Resource{
+		resource.ClusterType:  clusters,
+		resource.ListenerType: listeners,
+		resource.SecretType:   secrets,
+	})
+
 	if err != nil {
 		return err
 	}
 
-	err = d.snapshotCache.SetSnapshot(context.Background(), staticHash, snapshot)
+	if err := snap.Consistent(); err != nil {
+		return err
+	}
+
+	err = d.snapshotCache.SetSnapshot(context.Background(), staticHash, snap)
 	if err != nil {
 		return err
 	}
