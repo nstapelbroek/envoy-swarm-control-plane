@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
-	github.com/docker/docker v20.10.19+incompatible
+	github.com/docker/docker v20.10.24+incompatible
 	github.com/envoyproxy/go-control-plane v0.10.3
 	github.com/go-acme/lego/v4 v4.9.0
 	github.com/golang/protobuf v1.5.2
