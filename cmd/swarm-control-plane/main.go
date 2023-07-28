@@ -42,8 +42,9 @@ var (
 
 func init() {
 	// Required arguments with defaults shipped in the yaml
+	const defaultXDSPort = 9876
 	flag.StringVar(&storagePath, "storage-dir", "/etc/ssl/certs/le", "Local filesystem location where certificates are kept")
-	flag.UintVar(&xdsPort, "xds-port", 9876, "The port where envoy instances can connect to for configuration updates")
+	flag.UintVar(&xdsPort, "xds-port", defaultXDSPort, "The port where envoy instances can connect to for configuration updates")
 	flag.StringVar(&acmePort, "acme-port", "8080", "The port where envoy will proxy lets encrypt HTTP-01 challenges towards")
 	flag.StringVar(&ingressNetwork, "ingress-network", "edge-traffic", "The swarm network name or ID that all services share with the envoy instances")
 	flag.StringVar(&xdsClusterName, "xds-cluster", "control_plane", "Name of the cluster your envoy instances are contacting for ADS/SDS")

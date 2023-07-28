@@ -52,13 +52,13 @@ func (s *ADSProvider) provideClustersAndVhosts(ctx context.Context) (clusters []
 	// Make sure we have up-to-date info about our ingress network
 	ingress, err := s.getIngressNetwork(ctx)
 	if err != nil {
-		return
+		return clusters, vhosts, err
 	}
 
 	// Although introspecting by network makes more sense, I prefer debug output why we skipped a specific service
 	services, err := s.dockerClient.ServiceList(ctx, swarmtypes.ServiceListOptions{})
 	if err != nil {
-		return
+		return clusters, vhosts, err
 	}
 
 	vhosts = converting.NewVhostCollection()
