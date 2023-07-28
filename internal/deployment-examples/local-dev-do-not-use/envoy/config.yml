@@ -3,7 +3,7 @@ overload_manager:
   resource_monitors:
     - name: "envoy.resource_monitors.fixed_heap"
       typed_config:
-        "@type": type.googleapis.com/envoy.config.resource_monitor.fixed_heap.v2alpha.FixedHeapConfig
+        "@type": type.googleapis.com/envoy.extensions.resource_monitors.fixed_heap.v3.FixedHeapConfig
         max_heap_size_bytes: 512000000 # 512MB
   actions:
     - name: "envoy.overload_actions.shrink_heap"
@@ -16,13 +16,6 @@ overload_manager:
         - name: "envoy.resource_monitors.fixed_heap"
           threshold:
             value: 0.98
-
-admin:
-  access_log_path: /dev/null
-  address:
-    socket_address:
-      address: 0.0.0.0
-      port_value: 10000
 
 dynamic_resources:
   ads_config:
@@ -42,7 +35,7 @@ dynamic_resources:
 
 node:
   cluster: local-development
-  id: test-id
+  id: envoy1
 
 static_resources:
   clusters:
@@ -57,7 +50,7 @@ static_resources:
               - endpoint:
                   address:
                     socket_address:
-                      address: docker.host.internal
+                      address: CONTROL_PLANE_HOST
                       port_value: 9876
 
     - name: control_plane_acme
@@ -70,7 +63,7 @@ static_resources:
               - endpoint:
                   address:
                     socket_address:
-                      address: docker.host.internal
+                      address: CONTROL_PLANE_HOST
                       port_value: 8080
 
 layered_runtime:
@@ -79,3 +72,10 @@ layered_runtime:
       static_layer:
         overload:
           global_downstream_max_connections: 10000
+
+admin:
+  access_log_path: /dev/null
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 10000

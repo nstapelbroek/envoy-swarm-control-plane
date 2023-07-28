@@ -2,7 +2,6 @@ DOCKER_NETWORK_NAME = edge-traffic
 ENVOY_SERVICE_NAME = envoy
 DOCKER_NETWORK_ID = $(shell docker network ls -q -f name=$(DOCKER_NETWORK_NAME))
 USERLAND_STACKS := $(wildcard stacks/*.yml)
-DOCKER_BRIDGE_IP := $(shell ip -f inet addr show docker_gwbridge | grep -Po 'inet \K[\d.]+')
 
 ifeq ($(DOCKER_NETWORK_ID),)
 	DOCKER_NETWORK_ID := $(shell docker network create --driver=overlay --attachable $(DOCKER_NETWORK_NAME))
@@ -22,8 +21,8 @@ deploy-services:
 
 .PHONY: deploy-envoy
 deploy-envoy:
-	@docker image build --tag nstapelbroek/envoy-edge:dev --build-arg CONTROL_PLANE_HOST=$(DOCKER_BRIDGE_IP) $(CURDIR)/envoy
-	@docker service create --name $(ENVOY_SERVICE_NAME) --publish published=80,target=80,mode=host --publish published=443,target=443,mode=host --publish published=10000,target=10000,mode=host --network $(DOCKER_NETWORK_NAME) nstapelbroek/envoy-edge:dev
+	@docker buildx build --load --tag nstapelbroek/envoy-swarm-edge:latest --build-arg CONTROL_PLANE_HOST=gateway.docker.internal $(CURDIR)/envoy
+	@docker service create --name $(ENVOY_SERVICE_NAME) --publish published=80,target=80,mode=host --publish published=443,target=443,mode=host --publish published=10000,target=10000,mode=host --network $(DOCKER_NETWORK_NAME) nstapelbroek/envoy-swarm-edge:latest
 
 .PHONY: run-pebble
 run-pebble:

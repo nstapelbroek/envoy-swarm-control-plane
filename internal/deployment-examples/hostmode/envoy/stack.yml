@@ -2,7 +2,7 @@ version: '3.7'
 
 services:
   control-plane:
-    image: nstapelbroek/envoy-swarm-control-plane:0.1
+    image: nstapelbroek/envoy-swarm-control-plane:0.2
     command:
       - --ingress-network
       - edge-traffic
@@ -25,7 +25,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
   proxy:
-    image: nstapelbroek/envoy-swarm-edge:0.1
+    image: nstapelbroek/envoy-swarm-edge:0.2
     deploy:
       mode: global
       placement:

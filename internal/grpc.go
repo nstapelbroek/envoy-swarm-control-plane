@@ -5,6 +5,9 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
+
+	"google.golang.org/grpc/keepalive"
 
 	clusterservice "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
 	discoverygrpc "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
@@ -19,17 +22,30 @@ import (
 )
 
 const (
-	grpcMaxConcurrentStreams = 1000000
+	grpcKeepaliveTime        = 30 * time.Second
+	grpcKeepaliveTimeout     = 5 * time.Second
+	grpcKeepaliveMinTime     = 30 * time.Second
+	grpcMaxConcurrentStreams = 100000
 )
 
 // RunXDSServer starts an xDS streaming at the given port.
 func RunXDSServer(ctx context.Context, srv streaming.Server, port uint) {
 	// gRPC golang library sets a very small upper bound for the number gRPC/h2
 	// streams over a single TCP connection. If a proxy multiplexes requests over
-	// a single connection to the management streaming, then it might lead to
-	// availability problems.
+	// a single connection to the management server, then it might lead to
+	// availability problems. Keepalive timeouts based on connection_keepalive parameter https://www.envoyproxy.io/docs/envoy/latest/configuration/overview/examples#dynamic
 	var grpcOptions []grpc.ServerOption
-	grpcOptions = append(grpcOptions, grpc.MaxConcurrentStreams(grpcMaxConcurrentStreams))
+	grpcOptions = append(grpcOptions,
+		grpc.MaxConcurrentStreams(grpcMaxConcurrentStreams),
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			Time:    grpcKeepaliveTime,
+			Timeout: grpcKeepaliveTimeout,
+		}),
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             grpcKeepaliveMinTime,
+			PermitWithoutStream: true,
+		}),
+	)
 	grpcServer := grpc.NewServer(grpcOptions...)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
@@ -39,7 +55,7 @@ func RunXDSServer(ctx context.Context, srv streaming.Server, port uint) {
 
 	registerServices(grpcServer, srv)
 
-	logger.Infof("xDS gRPC streaming listening on %d\n", port)
+	logger.Infof("xDS gRPC streaming listening on port %d\n", port)
 	go func() {
 		if err = grpcServer.Serve(lis); err != nil {
 			logger.Errorf(err.Error())

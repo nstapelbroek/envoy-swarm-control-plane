@@ -50,7 +50,7 @@ func (a *AcmeClientBuilder) Build() (*lego.Client, error) {
 
 	config := lego.NewConfig(account)
 
-	// @see deployments/development-linux/readme.md
+	// @see deployment-examples/local-dev-do-not-use/readme.md
 	if a.forLocalDevelopment {
 		config.CADirURL = "https://127.0.0.1:14000/dir"
 		config.Certificate.KeyType = certcrypto.RSA2048
