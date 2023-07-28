@@ -1,63 +1,25 @@
-linters-settings:
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - octalLiteral
-      - unnamedResult
-  goimports:
-    local-prefixes: github.com/golangci/golangci-lint
-  gomnd:
-    settings:
-      mnd:
-        checks: argument,case,condition,return
-  maligned:
-    suggest-new: true
+# Refer to golangci-lint's example config file for more options and information:
+# https://github.com/golangci/golangci-lint/blob/master/.golangci.reference.yml
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
 
 linters:
-  # please, do not use `enable-all`: it's deprecated and will be removed soon.
-  # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
-  disable-all: true
   enable:
-    - bodyclose
-    - deadcode
-    - dogsled
     - errcheck
-    - exhaustive
-    - goconst
-    - gocritic
-    - gocyclo
     - goimports
-    - golint
-    - gomnd
-    - goprintffuncname
-    - gosec
-    - gosimple
+    - revive
     - govet
-    - ineffassign
-    - interfacer
-    - misspell
-    - nakedret
-    - noctx
-    - rowserrcheck
-    - scopelint
     - staticcheck
-    - structcheck
-    - stylecheck
-    - typecheck
-    - unconvert
-    - unparam
-    - unused
-    - varcheck
-    - whitespace
+
+linters-settings:
+  revive:
+    rules:
+      - name: exported
+        disabled: true
 
 issues:
-  # Excluding configuration per-path, per-linter, per-text and per-source
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - gomnd
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
