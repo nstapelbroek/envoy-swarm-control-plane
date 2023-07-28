@@ -3,6 +3,9 @@ package converting
 import (
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	tls_inspectorv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/tls_inspector/v3"
+	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -41,12 +44,14 @@ func (b *ListenerBuilder) Build() *listener.Listener {
 
 	if b.configureTLS {
 		port = 443
+		tlsFilterConfig, _ := anypb.New(&tls_inspectorv3.TlsInspector{})
 		listenerFilters = []*listener.ListenerFilter{{
-			Name: "envoy.filters.listener.tls_inspector",
+			Name:       wellknown.TLSInspector,
+			ConfigType: &listener.ListenerFilter_TypedConfig{TypedConfig: tlsFilterConfig},
 		}}
 	}
 
-	chains := []*listener.FilterChain{}
+	var chains []*listener.FilterChain
 	for i := range b.filterChains {
 		chains = append(chains, b.filterChains[i].Build())
 	}
