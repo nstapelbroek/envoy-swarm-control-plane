@@ -53,6 +53,6 @@ make run-pebble
 After running these services, you can run the control plane via your IDE or by hand from the project root:
 
 ```bash
-LEGO_CA_CERTIFICATES=$(pwd)/deployment-examples/development-host/pebble/ca.pem \
-go run $(pwd)/cmd/swarm-control-plane --debug --storage-dir $(pwd)deployment-examples/development-host/certificates/ --acme-email you@provider.com --acme-accept-terms --acme-local
+LEGO_CA_CERTIFICATES=$(pwd)/internal/deployment-examples/local-dev-do-not-use/pebble/ca.pem \
+go run $(pwd)/cmd/swarm-control-plane --debug --storage-dir $(pwd)/internal/deployment-examples/development-host/certificates/ --acme-email you@provider.com --acme-accept-terms --acme-local
 ```
