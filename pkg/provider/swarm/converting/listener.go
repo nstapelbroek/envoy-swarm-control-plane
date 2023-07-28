@@ -3,7 +3,7 @@ package converting
 import (
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
-	"github.com/golang/protobuf/ptypes/wrappers"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 type ListenerBuilder struct {
@@ -66,6 +66,6 @@ func (b *ListenerBuilder) Build() *listener.Listener {
 		},
 		ListenerFilters:               listenerFilters,
 		FilterChains:                  chains,
-		PerConnectionBufferLimitBytes: &wrappers.UInt32Value{Value: uint32(PerConnectionBufferLimit)},
+		PerConnectionBufferLimitBytes: &wrapperspb.UInt32Value{Value: uint32(PerConnectionBufferLimit)},
 	}
 }

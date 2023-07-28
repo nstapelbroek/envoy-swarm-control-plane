@@ -10,8 +10,10 @@ import (
 
 // We'll use .pem and .key files to store our certificate and private key, trying to play nice with x509 standards
 // Note that this storage doesn't know anything about the encoding and merely exists to write bytes to disk
-const CertificateExtension = "pem"
-const PrivateKeyExtension = "key"
+const (
+	CertificateExtension = "pem"
+	PrivateKeyExtension  = "key"
+)
 
 // getCertificateFilename contains the business logic for generating consistent certificate file names
 func getCertificateFilename(primaryDomain string, sans []string) string {

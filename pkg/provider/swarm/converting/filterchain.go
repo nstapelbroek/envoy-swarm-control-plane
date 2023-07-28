@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/protobuf/types/known/wrapperspb"
+
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
-
-	"github.com/golang/protobuf/ptypes/wrappers"
 
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	router "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/router/v3"
 	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	auth "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
@@ -65,8 +66,7 @@ func (b *FilterChainBuilder) Build() *listener.FilterChain {
 }
 
 func (b *FilterChainBuilder) buildHTTPFilterForVhosts() *listener.Filter {
-	const ServerName = "envoy-on-swarm/0.1"
-	const HTTPIdleTimeout = 1 * time.Hour
+	const ServerName = "envoy-on-swarm/0.2"
 	const RequestTimeout = 5 * time.Minute
 	const MaxConcurrentHTTP2Streams = 100
 	const InitialDownstreamHTTP2StreamWindowSize = 65536       // 64 KiB
@@ -77,6 +77,7 @@ func (b *FilterChainBuilder) buildHTTPFilterForVhosts() *listener.Filter {
 		routeType = "https"
 	}
 
+	routerConfig, _ := anypb.New(&router.Router{})
 	routes := &route.RouteConfiguration{
 		Name:         fmt.Sprintf("%s_%s_routes", b.name, routeType),
 		VirtualHosts: b.vhosts,
@@ -85,17 +86,16 @@ func (b *FilterChainBuilder) buildHTTPFilterForVhosts() *listener.Filter {
 		ServerName:       ServerName,
 		CodecType:        hcm.HttpConnectionManager_AUTO,
 		StatPrefix:       b.name,
-		UseRemoteAddress: &wrappers.BoolValue{Value: true},
+		UseRemoteAddress: &wrapperspb.BoolValue{Value: true},
 		RouteSpecifier:   &hcm.HttpConnectionManager_RouteConfig{RouteConfig: routes},
-		HttpFilters:      []*hcm.HttpFilter{{Name: "envoy.filters.http.router"}},
-		CommonHttpProtocolOptions: &core.HttpProtocolOptions{
-			IdleTimeout:                  durationpb.New(HTTPIdleTimeout),
-			HeadersWithUnderscoresAction: core.HttpProtocolOptions_REJECT_REQUEST,
-		},
+		HttpFilters: []*hcm.HttpFilter{{
+			Name:       wellknown.Router,
+			ConfigType: &hcm.HttpFilter_TypedConfig{TypedConfig: routerConfig},
+		}},
 		Http2ProtocolOptions: &core.Http2ProtocolOptions{
-			MaxConcurrentStreams:        &wrappers.UInt32Value{Value: uint32(MaxConcurrentHTTP2Streams)},
-			InitialStreamWindowSize:     &wrappers.UInt32Value{Value: uint32(InitialDownstreamHTTP2StreamWindowSize)},
-			InitialConnectionWindowSize: &wrappers.UInt32Value{Value: uint32(InitialDownstreamHTTP2ConnectionWindowSize)},
+			MaxConcurrentStreams:        &wrapperspb.UInt32Value{Value: uint32(MaxConcurrentHTTP2Streams)},
+			InitialStreamWindowSize:     &wrapperspb.UInt32Value{Value: uint32(InitialDownstreamHTTP2StreamWindowSize)},
+			InitialConnectionWindowSize: &wrapperspb.UInt32Value{Value: uint32(InitialDownstreamHTTP2ConnectionWindowSize)},
 		},
 		StreamIdleTimeout: durationpb.New(RequestTimeout),
 		RequestTimeout:    durationpb.New(RequestTimeout),

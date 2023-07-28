@@ -4,8 +4,7 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/types/known/durationpb"
-
-	"github.com/golang/protobuf/ptypes/wrappers"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/docker/docker/api/types/swarm"
 	cluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -66,13 +65,13 @@ func convertServiceToCluster(service *swarm.Service, loadAssignment *endpoint.Cl
 		RespectDnsTtl:                 false, // Default TTL is 600, which is too long in the case of scaling down
 		DnsRefreshRate:                durationpb.New(DNSRefreshRate),
 		LoadAssignment:                loadAssignment,
-		PerConnectionBufferLimitBytes: &wrappers.UInt32Value{Value: uint32(PerConnectionBufferLimit)},
+		PerConnectionBufferLimitBytes: &wrapperspb.UInt32Value{Value: uint32(PerConnectionBufferLimit)},
 		UpstreamConnectionOptions: &cluster.UpstreamConnectionOptions{
 			// Unsure if these values make sense, I lowered the linux defaults as I expect the network to be more reliable than the www
 			TcpKeepalive: &core.TcpKeepalive{
-				KeepaliveProbes:   &wrappers.UInt32Value{Value: uint32(UpstreamTCPKeepaliveProbes)},
-				KeepaliveTime:     &wrappers.UInt32Value{Value: uint32(UpstreamTCPKeepaliveTime)},
-				KeepaliveInterval: &wrappers.UInt32Value{Value: uint32(UpstreamTCPKeepaliveInterval)},
+				KeepaliveProbes:   &wrapperspb.UInt32Value{Value: uint32(UpstreamTCPKeepaliveProbes)},
+				KeepaliveTime:     &wrapperspb.UInt32Value{Value: uint32(UpstreamTCPKeepaliveTime)},
+				KeepaliveInterval: &wrapperspb.UInt32Value{Value: uint32(UpstreamTCPKeepaliveInterval)},
 			},
 		},
 	}
