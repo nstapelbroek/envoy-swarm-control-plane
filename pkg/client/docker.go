@@ -10,6 +10,8 @@ func NewDockerClient() *docker.Client {
 	c, err := docker.NewClientWithOpts(
 		docker.FromEnv,
 		docker.WithHTTPHeaders(httpHeaders),
+		docker.WithAPIVersionNegotiation(),
+		docker.WithHostFromEnv(),
 	)
 	if err != nil {
 		panic(err)
