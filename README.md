@@ -11,7 +11,7 @@ docker swarm. Enable vhosting accross your swarm with just two services!
   - Relies on swarms routing mesh to proxy traffic to services
   - Reads configuration from deployment labels
   - Instantly detects changes in stack configurations
-  - Gives you freedom to run your edge proxies on worker nodes
+  - Gives you freedom to run your reverse proxies on worker nodes
 - SSL/TLS support
   - Redirect HTTP to HTTPS
   - TLS enabled vhosts will offer HTTP/1.1 and HTTP/2
@@ -19,13 +19,9 @@ docker swarm. Enable vhosting accross your swarm with just two services!
 - LetsEncrypt integration
   - For one or multiple (bundled) domains
   - Automatic renewals
-- Able to store certificates on Disk or Object storage
+- Able to store certificates on Disk or S3/Object storage
 - Tries to play nice with system resources
-  - So far it uses ~25mb on a swarm with 20 services
+  - So far it uses ~25mb on a swarm cluster with 20 services
 
 ## Getting started
 Use the [docs](https://nstapelbroek.github.io/envoy-swarm-control-plane/) to learn more.
-  
-## Roadmap:
-I'm working to get this to an MVP state.
-You can follow the progress in [the project board on Github](https://github.com/nstapelbroek/envoy-swarm-control-plane/projects/1). 
