@@ -32,7 +32,7 @@ type ServiceLabel struct {
 func (l *ServiceLabel) setEndpointProp(property, value string) {
 	switch strings.ToLower(property) {
 	case "timeout":
-		if timeout, err := time.ParseDuration(value); err != nil {
+		if timeout, err := time.ParseDuration(value); err == nil {
 			l.Endpoint.RequestTimeout = timeout
 		}
 	case "protocol":
