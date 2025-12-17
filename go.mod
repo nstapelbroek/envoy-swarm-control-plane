@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2
-	github.com/docker/docker v27.5.1+incompatible
+	github.com/docker/docker v28.0.0+incompatible
 	github.com/envoyproxy/go-control-plane v0.13.4
 	github.com/envoyproxy/go-control-plane/envoy v1.32.3
 	github.com/go-acme/lego/v4 v4.21.0
