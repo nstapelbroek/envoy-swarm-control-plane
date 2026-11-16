@@ -65,9 +65,9 @@ func TestListenCoalescesBurstEvents(t *testing.T) {
 	ads := &mockADS{done: make(chan struct{}, 1)}
 	mgr := newTestManager(ads)
 
-	events := make(chan UpdateReason, 10)
+	events := make(chan UpdateReason, 1)
 	for i := 0; i < 5; i++ {
-		events <- UpdateReason("burst event")
+		RequestUpdate(events, "burst event")
 	}
 
 	go mgr.Listen(events)
@@ -83,26 +83,32 @@ func TestListenCoalescesBurstEvents(t *testing.T) {
 	assert.Equal(t, 1, ads.calls(), "expected burst events to be coalesced into a single discovery run")
 }
 
-func TestListenProcessesMultipleBurstsSeparately(t *testing.T) {
+func TestListenProcessesLaterUpdatesSeparately(t *testing.T) {
 	ads := &mockADS{done: make(chan struct{}, 1)}
 	mgr := newTestManager(ads)
 
-	events := make(chan UpdateReason, 20)
+	events := make(chan UpdateReason, 1)
 	go mgr.Listen(events)
 
-	for i := 0; i < 3; i++ {
-		events <- UpdateReason("burst 1")
-	}
+	RequestUpdate(events, "first change")
 	waitDiscovery(t, ads)
 	assert.Equal(t, 1, ads.calls())
 
-	for i := 0; i < 3; i++ {
-		events <- UpdateReason("burst 2")
-	}
+	RequestUpdate(events, "second change")
 	waitDiscovery(t, ads)
 	assert.Equal(t, 2, ads.calls())
 
 	close(events)
+}
+
+func TestRequestUpdateDoesNotBlockWhenRunIsQueued(t *testing.T) {
+	events := make(chan UpdateReason, 1)
+
+	RequestUpdate(events, "queued")
+	RequestUpdate(events, "skipped") // would deadlock the test if it blocked
+
+	assert.Len(t, events, 1)
+	assert.Equal(t, UpdateReason("queued"), <-events)
 }
 
 func waitDiscovery(t *testing.T, ads *mockADS) {

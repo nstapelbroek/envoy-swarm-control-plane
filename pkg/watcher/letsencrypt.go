@@ -36,14 +36,14 @@ func (l *LetsEncrypt) Start(ctx context.Context, dispatchChannel chan snapshot.U
 		case <-reissueInterval:
 			l.logger.Debugf("Running LetsEncrypt certificate issuing")
 			if reloadRequired, _ := l.integration.IssueCertificates(); reloadRequired {
-				dispatchChannel <- "new LetsEncrypt certificate rotated"
+				snapshot.RequestUpdate(dispatchChannel, "new LetsEncrypt certificate rotated")
 			}
 
 			reissueInterval = time.After(IssueInterval * time.Second)
 		case <-renewalInterval:
 			l.logger.Debugf("Running LetsEncrypt renewal check")
 			if reloadRequired := l.integration.ScheduleRenewals(); reloadRequired {
-				dispatchChannel <- "LetsEncrypt renewal scheduled"
+				snapshot.RequestUpdate(dispatchChannel, "LetsEncrypt renewal scheduled")
 			}
 
 			renewalInterval = time.After(CheckForRenewalInterval * time.Second)
