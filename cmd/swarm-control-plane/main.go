@@ -96,7 +96,7 @@ func main() {
 
 // createWatchers will boot all background watchers that can cause an state update in the control plane
 func createWatchers(ctx context.Context, acmeIntegration *acme.Integration) chan snapshot.UpdateReason {
-	UpdateEvents := make(chan snapshot.UpdateReason)
+	UpdateEvents := make(chan snapshot.UpdateReason, 1)
 	log := internalLogger.Instance().WithFields(logger.Fields{"area": "watcher"})
 
 	if acmeIntegration != nil {

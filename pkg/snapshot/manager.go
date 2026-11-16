@@ -29,8 +29,7 @@ func NewManager(ads provider.ADS, sds provider.SDS, c cache.SnapshotCache, log l
 }
 
 func (d *Manager) Listen(updateChannel chan UpdateReason) {
-	for {
-		reason := <-updateChannel
+	for reason := range updateChannel {
 		if err := d.runDiscovery(reason); err != nil {
 			d.logger.Fatalf(err.Error()) // For now, we kill the application as I don't know in what cases we could recover
 		}
